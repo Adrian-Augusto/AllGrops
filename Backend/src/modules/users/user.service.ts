@@ -14,9 +14,11 @@ export class UsersService {
       where: { id },
       include: { communities: true, memberships: true, subscriptions: true },
     });
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
+
     return user;
   }
 }
