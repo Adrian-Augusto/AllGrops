@@ -8,26 +8,29 @@ datasource db {
 }
 
 model User {
-  id           String         @id @default(uuid())
-  name         String
-  email        String         @unique
-  password     String
-  createdAt    DateTime       @default(now())
-  communities  Community[]    @relation("CommunityOwner")
-  memberships  Membership[]
+  id            String         @id @default(uuid())
+  name          String
+  email         String         @unique
+  password      String?
+  googleId      String?        @unique
+  profileImage  String?
+  createdAt     DateTime       @default(now())
+  communities   Community[]    @relation("CommunityOwner")
+  memberships   Membership[]
   subscriptions Subscription[]
 }
 
 model Community {
-  id          String        @id @default(uuid())
+  id          String            @id @default(uuid())
   name        String
   description String
   categoryId  String
   ownerId     String
-  isFeatured  Boolean       @default(false)
-  createdAt   DateTime      @default(now())
-  owner       User          @relation("CommunityOwner", fields: [ownerId], references: [id])
-  category    Category      @relation(fields: [categoryId], references: [id])
+  isFeatured  Boolean           @default(false)
+  status      CommunityStatus   @default(PENDING)
+  createdAt   DateTime          @default(now())
+  owner       User              @relation("CommunityOwner", fields: [ownerId], references: [id])
+  category    Category          @relation(fields: [categoryId], references: [id])
   memberships Membership[]
   subscriptions Subscription[]
 }
@@ -73,6 +76,12 @@ model Subscription {
 enum MembershipRole {
   ADMIN
   MEMBER
+}
+
+enum CommunityStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum SubscriptionStatus {
