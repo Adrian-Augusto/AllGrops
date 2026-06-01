@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { GoogleAuthGuard } from './google-auth.guard';
+import { JwtAuthGuard } from './jwt-auth.guard';
 import { Response } from 'express';
 
 class RegisterDto {
@@ -22,6 +23,14 @@ class LoginDto {
 
   @ApiProperty({ example: 'SenhaForte123!' })
   password: string;
+}
+
+class ChangePasswordDto {
+  @ApiProperty({ example: 'SenhaForte123!' })
+  currentPassword: string;
+
+  @ApiProperty({ example: 'NovaSenhaForte456!' })
+  newPassword: string;
 }
 
 @ApiTags('auth')
@@ -62,6 +71,7 @@ export class AuthController {
     try {
       // Tratamento de erros do Google OAuth
       if (error) {
+        console.error('Google OAuth error:', error);
         const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
         return res.redirect(`${frontendUrl}/login?error=${error}`);
       }
@@ -74,6 +84,8 @@ export class AuthController {
       // e executou a validação, deixando o usuário em req.user
       const userProfile = req.user;
       
+      console.log('User profile recebido no callback:', userProfile);
+
       if (!userProfile) {
         throw new BadRequestException('Failed to retrieve user profile from Google');
       }
@@ -113,5 +125,11 @@ export class AuthController {
       sameSite: 'lax',
     });
     return res.json({ message: 'Logged out successfully' });
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  async changePassword(@Req() req: any, @Body() body: ChangePasswordDto) {
+    return this.authService.changePassword(req.user.sub, body.currentPassword, body.newPassword);
   }
 }

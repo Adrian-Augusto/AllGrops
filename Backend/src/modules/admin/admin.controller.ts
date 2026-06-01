@@ -37,17 +37,17 @@ export class AdminController {
 
   @Patch('groups/:id/approve')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Approve a community group' })
+  @ApiOperation({ summary: 'Approve a group' })
   @ApiResponse({ status: 200, description: 'Group approved successfully' })
-  async approveCommunity(@Param('id') id: string) {
-    return this.adminService.approveCommunity(id);
+  async approveGroup(@Param('id') id: string) {
+    return this.adminService.approveGroup(id);
   }
 
   @Patch('groups/:id/reject')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Reject a community group' })
+  @ApiOperation({ summary: 'Reject a group' })
   @ApiResponse({ status: 200, description: 'Group rejected successfully' })
-  async rejectCommunity(@Param('id') id: string) {
-    return this.adminService.rejectCommunity(id);
+  async rejectGroup(@Param('id') id: string) {
+    return this.adminService.rejectGroup(id);
   }
 }

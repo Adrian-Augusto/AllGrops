@@ -1,12 +1,12 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
-import { CommunitiesService } from './community.service';
+import { GroupsService } from './group.service';
 
-class CreateCommunityDto {
+class CreateGroupDto {
   @ApiProperty({ example: 'user-123' })
   ownerId: string;
 
-  @ApiProperty({ example: 'Comunidade de Tecnologia' })
+  @ApiProperty({ example: 'Grupo de Tecnologia' })
   name: string;
 
   @ApiProperty({ example: 'Grupo para discutir tecnologia e programação.' })
@@ -16,7 +16,7 @@ class CreateCommunityDto {
   categoryId: string;
 }
 
-class FeatureCommunityDto {
+class FeatureGroupDto {
   @ApiProperty({ example: 'user-123' })
   ownerId: string;
 
@@ -24,14 +24,14 @@ class FeatureCommunityDto {
   approved: boolean;
 }
 
-@ApiTags('communities')
-@Controller('communities')
-export class CommunitiesController {
-  constructor(private readonly communitiesService: CommunitiesService) {}
+@ApiTags('groups')
+@Controller('groups')
+export class GroupsController {
+  constructor(private readonly groupsService: GroupsService) {}
 
   @Post()
-  create(@Body() dto: CreateCommunityDto) {
-    return this.communitiesService.createCommunity(dto.ownerId, {
+  create(@Body() dto: CreateGroupDto) {
+    return this.groupsService.createGroup(dto.ownerId, {
       name: dto.name,
       description: dto.description,
       categoryId: dto.categoryId,
@@ -40,21 +40,21 @@ export class CommunitiesController {
 
   @Get()
   findAll(@Query('categoryId') categoryId?: string) {
-    return this.communitiesService.getAll(categoryId);
+    return this.groupsService.getAll(categoryId);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.communitiesService.getOne(id);
+    return this.groupsService.getOne(id);
   }
 
   @Post(':id/join')
   join(@Param('id') id: string, @Body('userId') userId: string) {
-    return this.communitiesService.joinCommunity(userId, id);
+    return this.groupsService.joinGroup(userId, id);
   }
 
   @Post(':id/feature')
-  feature(@Param('id') id: string, @Body() dto: FeatureCommunityDto) {
-    return this.communitiesService.highlightCommunity(dto.ownerId, id, dto.approved);
+  feature(@Param('id') id: string, @Body() dto: FeatureGroupDto) {
+    return this.groupsService.highlightGroup(dto.ownerId, id, dto.approved);
   }
 }

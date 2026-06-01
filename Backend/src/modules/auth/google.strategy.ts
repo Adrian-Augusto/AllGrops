@@ -11,6 +11,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET'),
       callbackURL: configService.get<string>('GOOGLE_CALLBACK_URL'),
       scope: ['profile', 'email'],
+      passReqToCallback: false,
     });
   }
 
@@ -20,14 +21,34 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     profile: any,
     done: VerifyCallback,
   ): Promise<any> {
-    const { id, name, emails, photos } = profile;
+    // Extract profile data with fallbacks
+    const googleId = profile.id;
+    const email = profile.emails?.[0]?.value || '';
+    
+    // Get name - try multiple sources for robustness
+    const givenName = profile.name?.givenName || '';
+    const familyName = profile.name?.familyName || '';
+    const displayName = profile.displayName || givenName + (familyName ? ' ' + familyName : '');
+    const name = displayName || givenName || 'User';
+
+    // Get profile image - try multiple sources
+    const profileImage = profile.photos?.[0]?.value || profile._json?.picture || null;
+
+    console.log('Google Profile Data:', {
+      googleId,
+      email,
+      name,
+      profileImage,
+    });
+
     const user = {
-      googleId: id,
-      email: emails[0].value,
-      name: name.givenName + (name.familyName ? ' ' + name.familyName : ''),
-      profileImage: photos[0]?.value || null,
+      googleId,
+      email,
+      name,
+      profileImage,
       accessToken,
     };
+
     done(null, user);
   }
 }

@@ -7,9 +7,9 @@ export class AdminService {
 
   async getStats() {
     const totalUsers = await this.prisma.user.count();
-    const totalCommunities = await this.prisma.community.count();
+    const totalGroups = await this.prisma.group.count();
     const totalSubscriptions = await this.prisma.subscription.count();
-    const pendingCommunities = await this.prisma.community.count({
+    const pendingGroups = await this.prisma.group.count({
       where: { status: 'PENDING' },
     });
     const totalRevenue = await this.prisma.subscription.aggregate({
@@ -19,9 +19,9 @@ export class AdminService {
 
     return {
       totalUsers,
-      totalCommunities,
+      totalGroups,
       totalSubscriptions,
-      pendingCommunities,
+      pendingGroups,
       totalRevenue: totalRevenue._sum?.price || 0,
     };
   }
@@ -39,7 +39,7 @@ export class AdminService {
       where.status = status.toUpperCase();
     }
 
-    const communities = await this.prisma.community.findMany({
+    const groups = await this.prisma.group.findMany({
       where,
       include: {
         owner: { select: { id: true, name: true, email: true } },
@@ -49,28 +49,28 @@ export class AdminService {
     });
 
     return {
-      data: communities,
-      total: communities.length,
+      data: groups,
+      total: groups.length,
     };
   }
 
-  async approveCommunity(communityId: string) {
-    const community = await this.prisma.community.findUnique({
-      where: { id: communityId },
+  async approveGroup(groupId: string) {
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
     });
 
-    if (!community) {
-      throw new NotFoundException('Community not found');
+    if (!group) {
+      throw new NotFoundException('Group not found');
     }
 
-    if (community.status !== 'PENDING') {
+    if (group.status !== 'PENDING') {
       throw new BadRequestException(
-        `Cannot approve community with status: ${community.status}`,
+        `Cannot approve group with status: ${group.status}`,
       );
     }
 
-    return this.prisma.community.update({
-      where: { id: communityId },
+    return this.prisma.group.update({
+      where: { id: groupId },
       data: { status: 'APPROVED' },
       include: {
         owner: { select: { id: true, name: true, email: true } },
@@ -79,23 +79,23 @@ export class AdminService {
     });
   }
 
-  async rejectCommunity(communityId: string) {
-    const community = await this.prisma.community.findUnique({
-      where: { id: communityId },
+  async rejectGroup(groupId: string) {
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
     });
 
-    if (!community) {
-      throw new NotFoundException('Community not found');
+    if (!group) {
+      throw new NotFoundException('Group not found');
     }
 
-    if (community.status !== 'PENDING') {
+    if (group.status !== 'PENDING') {
       throw new BadRequestException(
-        `Cannot reject community with status: ${community.status}`,
+        `Cannot reject group with status: ${group.status}`,
       );
     }
 
-    return this.prisma.community.update({
-      where: { id: communityId },
+    return this.prisma.group.update({
+      where: { id: groupId },
       data: { status: 'REJECTED' },
       include: {
         owner: { select: { id: true, name: true, email: true } },

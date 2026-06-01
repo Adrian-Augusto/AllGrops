@@ -14,42 +14,44 @@ model User {
   password      String?
   googleId      String?        @unique
   profileImage  String?
+  role          UserRole       @default(COMMON)
   createdAt     DateTime       @default(now())
-  communities   Community[]    @relation("CommunityOwner")
+  groups        Group[]        @relation("GroupOwner")
   memberships   Membership[]
   subscriptions Subscription[]
 }
 
-model Community {
+model Group {
   id          String            @id @default(uuid())
   name        String
   description String
   categoryId  String
   ownerId     String
   isFeatured  Boolean           @default(false)
-  status      CommunityStatus   @default(PENDING)
+  status      GroupStatus       @default(PENDING)
   createdAt   DateTime          @default(now())
-  owner       User              @relation("CommunityOwner", fields: [ownerId], references: [id])
+  owner       User              @relation("GroupOwner", fields: [ownerId], references: [id])
   category    Category          @relation(fields: [categoryId], references: [id])
   memberships Membership[]
   subscriptions Subscription[]
+  posts       Post[]
 }
 
 model Category {
-  id          String      @id @default(uuid())
-  name        String      @unique
-  communities Community[]
+  id     String  @id @default(uuid())
+  name   String  @unique
+  groups Group[]
 }
 
 model Membership {
-  id          String         @id @default(uuid())
-  userId      String
-  communityId String
-  role        MembershipRole @default(MEMBER)
-  user        User           @relation(fields: [userId], references: [id])
-  community   Community      @relation(fields: [communityId], references: [id])
+  id      String         @id @default(uuid())
+  userId  String
+  groupId String
+  role    MembershipRole @default(MEMBER)
+  user    User           @relation(fields: [userId], references: [id])
+  group   Group          @relation(fields: [groupId], references: [id])
 
-  @@unique([userId, communityId])
+  @@unique([userId, groupId])
 }
 
 model Plan {
@@ -61,16 +63,34 @@ model Plan {
 }
 
 model Subscription {
-  id          String             @id @default(uuid())
-  userId      String
-  communityId String
-  planId      String
-  status      SubscriptionStatus @default(PENDING)
-  paymentId   String?
-  createdAt   DateTime           @default(now())
-  user        User               @relation(fields: [userId], references: [id])
-  community   Community          @relation(fields: [communityId], references: [id])
-  plan        Plan               @relation(fields: [planId], references: [id])
+  id      String             @id @default(uuid())
+  userId  String
+  groupId String
+  planId  String
+  status  SubscriptionStatus @default(PENDING)
+  isActive Boolean            @default(false)
+  paymentId String?
+  createdAt DateTime          @default(now())
+  user    User               @relation(fields: [userId], references: [id])
+  group   Group              @relation(fields: [groupId], references: [id])
+  plan    Plan               @relation(fields: [planId], references: [id])
+}
+
+model Post {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  link        String?
+  platform    String?
+  photo       String?
+  groupId     String
+  createdAt   DateTime @default(now())
+  group       Group    @relation(fields: [groupId], references: [id])
+}
+
+enum UserRole {
+  ADMIN
+  COMMON
 }
 
 enum MembershipRole {
@@ -78,7 +98,7 @@ enum MembershipRole {
   MEMBER
 }
 
-enum CommunityStatus {
+enum GroupStatus {
   PENDING
   APPROVED
   REJECTED

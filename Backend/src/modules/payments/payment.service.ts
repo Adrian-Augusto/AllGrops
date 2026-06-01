@@ -12,19 +12,19 @@ export class PaymentsService {
     });
   }
 
-  async createPreference({ userId, communityId, planId, planName, price }: {
+  async createPreference({ userId, groupId, planId, planName, price }: {
     userId: string;
-    communityId: string;
+    groupId: string;
     planId: string;
     planName: string;
     price: number;
   }) {
-    await this.subscriptionsService.createSubscription(userId, communityId, planId);
+    await this.subscriptionsService.createSubscription(userId, groupId, planId);
 
     const preference = {
       items: [
         {
-          title: `Destaque de comunidade ${planName}`,
+          title: `Destaque de grupo ${planName}`,
           quantity: 1,
           currency_id: 'BRL',
           unit_price: price,
@@ -34,7 +34,7 @@ export class PaymentsService {
         email: `${userId}@example.com`,
       },
       notification_url: process.env.MERCADO_PAGO_WEBHOOK_URL,
-      external_reference: `${userId}:${communityId}:${planId}`,
+      external_reference: `${userId}:${groupId}:${planId}`,
       payment_methods: {
         excluded_payment_types: [{ id: 'atm' }],
       },
