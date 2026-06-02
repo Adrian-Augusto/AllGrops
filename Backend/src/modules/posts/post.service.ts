@@ -1,19 +1,27 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
 import * as path from 'path';
+import { v4 as uuid } from 'uuid';
 
 @Injectable()
 export class PostsService {
+  private readonly logger = new Logger(PostsService.name);
+
   constructor(private prisma: PrismaService) {}
 
-  async createPost(groupId: string, data: {
-    title: string;
-    description: string;
-    link?: string;
-    platform?: string;
-    photo?: Express.Multer.File;
-  }) {
+  async createPost(
+    groupId: string,
+    userId: string,
+    data: {
+      title: string;
+      description: string;
+      link?: string;
+      platform?: string;
+      photo?: Express.Multer.File;
+    },
+  ) {
+    // Verificar se grupo existe
     const group = await this.prisma.group.findUnique({ where: { id: groupId } });
     if (!group) {
       throw new NotFoundException('Group not found');
@@ -22,14 +30,31 @@ export class PostsService {
     let photoPath: string | null = null;
 
     if (data.photo) {
-      const uploadsDir = path.join(process.cwd(), 'uploads', 'posts');
-      await fs.mkdir(uploadsDir, { recursive: true });
+      // Validar tipo de arquivo
+      const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedMimes.includes(data.photo.mimetype)) {
+        throw new Error('Apenas JPG, PNG e WebP são permitidos');
+      }
 
-      const fileName = `post_${groupId}_${Date.now()}.jpg`;
+      // Validar tamanho (máx 5MB)
+      const maxSize = 5 * 1024 * 1024;
+      if (data.photo.size > maxSize) {
+        throw new Error('Foto não pode exceder 5MB');
+      }
+
+      const uploadsDir = path.join(process.cwd(), 'uploads', 'posts');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      const fileExt = path.extname(data.photo.originalname);
+      const fileName = `${uuid()}${fileExt}`;
       const filePath = path.join(uploadsDir, fileName);
 
-      await fs.writeFile(filePath, data.photo.buffer);
-      photoPath = `/uploads/posts/${fileName}`;
+      fs.writeFileSync(filePath, data.photo.buffer);
+      photoPath = `uploads/posts/${fileName}`;
+
+      this.logger.log(`📸 Foto salva: ${photoPath}`);
     }
 
     return this.prisma.post.create({
@@ -40,8 +65,12 @@ export class PostsService {
         platform: data.platform || null,
         photo: photoPath,
         groupId,
+        userId,
       },
-      include: { group: true },
+      include: {
+        group: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
     });
   }
 
@@ -53,7 +82,10 @@ export class PostsService {
 
     return this.prisma.post.findMany({
       where: { groupId },
-      include: { group: true },
+      include: {
+        group: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -61,7 +93,10 @@ export class PostsService {
   async getPost(postId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
-      include: { group: true },
+      include: {
+        group: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
     });
 
     if (!post) {
@@ -71,7 +106,7 @@ export class PostsService {
     return post;
   }
 
-  async deletePost(postId: string, groupId: string) {
+  async deletePost(postId: string, groupId: string, userId?: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
     });
@@ -84,12 +119,20 @@ export class PostsService {
       throw new ForbiddenException('Cannot delete post from another group');
     }
 
+    // Se userId foi fornecido, verificar se é o criador
+    if (userId && post.userId !== userId) {
+      throw new ForbiddenException('You can only delete your own posts');
+    }
+
     if (post.photo) {
       try {
         const filePath = path.join(process.cwd(), post.photo);
-        await fs.unlink(filePath);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          this.logger.log(`🗑️ Foto deletada: ${post.photo}`);
+        }
       } catch (error) {
-        console.error('Failed to delete post photo:', error);
+        this.logger.error('Failed to delete post photo:', error);
       }
     }
 

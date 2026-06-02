@@ -48,6 +48,16 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() body: LoginDto, @Res() res: Response) {
+    console.log('Login request recebido:', body);
+    
+    if (!body.email || !body.password) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: 'Email e password são obrigatórios',
+        received: body,
+      });
+    }
+
     const result = await this.authService.login(body.email, body.password);
     res.cookie('accessToken', result.accessToken, {
       httpOnly: true,

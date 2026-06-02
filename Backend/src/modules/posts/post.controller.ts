@@ -1,7 +1,10 @@
-import { Controller, Post, Get, Delete, Param, UseInterceptors, UploadedFile, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Param, UseInterceptors, UploadedFile, Body, BadRequestException, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiConsumes, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { PostsService } from './post.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { TermsAcceptedGuard } from '../auth/terms-accepted.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 
 @ApiTags('posts')
 @Controller('groups/:groupId/posts')
@@ -9,8 +12,10 @@ export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, TermsAcceptedGuard)
   @UseInterceptors(FileInterceptor('photo'))
   @ApiConsumes('multipart/form-data')
+  @ApiBearerAuth()
   @ApiBody({
     schema: {
       type: 'object',
@@ -22,6 +27,7 @@ export class PostsController {
         photo: {
           type: 'string',
           format: 'binary',
+          description: 'Arquivo de imagem (JPG, PNG, WebP)',
         },
       },
       required: ['title', 'description'],
@@ -29,6 +35,7 @@ export class PostsController {
   })
   async createPost(
     @Param('groupId') groupId: string,
+    @CurrentUser() userId: string,
     @Body() body: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
@@ -36,7 +43,7 @@ export class PostsController {
       throw new BadRequestException('title and description are required');
     }
 
-    return this.postsService.createPost(groupId, {
+    return this.postsService.createPost(groupId, userId, {
       title: body.title,
       description: body.description,
       link: body.link,
@@ -56,10 +63,13 @@ export class PostsController {
   }
 
   @Delete(':postId')
+  @UseGuards(JwtAuthGuard, TermsAcceptedGuard)
+  @ApiBearerAuth()
   async deletePost(
     @Param('groupId') groupId: string,
     @Param('postId') postId: string,
+    @CurrentUser() userId: string,
   ) {
-    return this.postsService.deletePost(postId, groupId);
+    return this.postsService.deletePost(postId, groupId, userId);
   }
 }

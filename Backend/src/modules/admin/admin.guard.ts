@@ -1,29 +1,46 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class AdminGuard implements CanActivate {
-  constructor(private prisma: PrismaService) {}
-
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
-    const userId = request.user?.id;
+    const user = request.user;
 
-    if (!userId) {
-      throw new ForbiddenException('User not authenticated');
+    // 1. Verificar se usuário está autenticado
+    if (!user) {
+      console.error('❌ AdminGuard: Usuário não encontrado em request.user');
+      throw new ForbiddenException('Usuário não autenticado');
     }
 
-    // Check if user has ADMIN role in any community (or you can check a global admin flag)
-    const adminMembership = await this.prisma.membership.findFirst({
-      where: {
-        userId,
-        role: 'ADMIN',
-      },
+    // 2. Verificar se role existe
+    if (!user.role) {
+      console.error('❌ AdminGuard: Campo "role" não encontrado', {
+        user_id: user.id,
+        user_email: user.email,
+        user_keys: Object.keys(user),
+      });
+      throw new ForbiddenException('Role não encontrado no token. Faça login novamente.');
+    }
+
+    // 3. Verificar role (case-insensitive para segurança)
+    const isAdmin = user.role.toUpperCase() === 'ADMIN';
+
+    if (!isAdmin) {
+      console.error('❌ AdminGuard: Acesso negado', {
+        user_id: user.id,
+        user_email: user.email,
+        user_role: user.role,
+        required_role: 'ADMIN',
+      });
+      throw new ForbiddenException('Você não tem permissão de administrador');
+    }
+
+    // 4. Log de sucesso
+    console.log('✅ AdminGuard: Acesso concedido', {
+      user_id: user.id,
+      user_email: user.email,
+      user_role: user.role,
     });
-
-    if (!adminMembership) {
-      throw new ForbiddenException('Admin access required');
-    }
 
     return true;
   }

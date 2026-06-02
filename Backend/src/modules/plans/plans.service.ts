@@ -7,6 +7,7 @@ export class PlansService {
 
   async getPlans() {
     const plans = await this.prisma.plan.findMany({
+      where: { isActive: true },
       orderBy: { price: 'asc' },
     });
 
@@ -16,7 +17,18 @@ export class PlansService {
     };
   }
 
-  async subscribeToPlan(userId: string, communityId: string, planId: string) {
+  async getAllPlans() {
+    const plans = await this.prisma.plan.findMany({
+      orderBy: { price: 'asc' },
+    });
+
+    return {
+      data: plans,
+      total: plans.length,
+    };
+  }
+
+  async subscribeToPlan(userId: string, groupId: string, planId: string) {
     // Validate user exists
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -26,28 +38,28 @@ export class PlansService {
       throw new NotFoundException('User not found');
     }
 
-    // Validate community exists
-    const community = await this.prisma.community.findUnique({
-      where: { id: communityId },
+    // Validate group exists
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
     });
 
-    if (!community) {
-      throw new NotFoundException('Community not found');
+    if (!group) {
+      throw new NotFoundException('Group not found');
     }
 
-    // Validate plan exists
+    // Validate plan exists and is active
     const plan = await this.prisma.plan.findUnique({
       where: { id: planId },
     });
 
-    if (!plan) {
-      throw new NotFoundException('Plan not found');
+    if (!plan || !plan.isActive) {
+      throw new NotFoundException('Plan not found or is inactive');
     }
 
-    // Check if user is owner of the community
-    if (community.ownerId !== userId) {
+    // Check if user is owner of the group
+    if (group.createdById !== userId) {
       throw new BadRequestException(
-        'Only community owner can subscribe to plans',
+        'Only group owner can subscribe to plans',
       );
     }
 
@@ -55,14 +67,14 @@ export class PlansService {
     const existingSubscription = await this.prisma.subscription.findFirst({
       where: {
         userId,
-        communityId,
+        groupId,
         status: { in: ['PENDING', 'APPROVED'] },
       },
     });
 
     if (existingSubscription) {
       throw new BadRequestException(
-        'Community already has an active subscription',
+        'Group already has an active subscription',
       );
     }
 
@@ -70,13 +82,13 @@ export class PlansService {
     const subscription = await this.prisma.subscription.create({
       data: {
         userId,
-        communityId,
+        groupId,
         planId,
         status: 'PENDING',
       },
       include: {
         user: { select: { id: true, name: true, email: true } },
-        community: { select: { id: true, name: true } },
+        group: { select: { id: true, name: true } },
         plan: true,
       },
     });
@@ -84,6 +96,32 @@ export class PlansService {
     return {
       message: 'Subscription created successfully',
       subscription,
+    };
+  }
+
+  async getUserPlans(userId: string) {
+    // Validate user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Get all subscriptions for this user with plan details
+    const subscriptions = await this.prisma.subscription.findMany({
+      where: { userId },
+      include: {
+        plan: true,
+        group: { select: { id: true, name: true, photoUrl: true, status: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      data: subscriptions,
+      total: subscriptions.length,
     };
   }
 }

@@ -5,12 +5,16 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UsersModule } from '../users/user.module';
+import { PrismaModule } from '../../prisma/prisma.module';
 import { GoogleStrategy } from './google.strategy';
+import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { TermsAcceptedGuard } from './terms-accepted.guard';
 
 @Module({
   imports: [
     UsersModule,
+    PrismaModule,
     ConfigModule,
     PassportModule,
     JwtModule.registerAsync({
@@ -23,7 +27,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, GoogleStrategy, JwtAuthGuard],
-  exports: [JwtAuthGuard, JwtModule],
+  providers: [AuthService, GoogleStrategy, JwtStrategy, JwtAuthGuard, TermsAcceptedGuard],
+  exports: [JwtAuthGuard, TermsAcceptedGuard, JwtModule],
 })
 export class AuthModule {}

@@ -12,17 +12,25 @@ export class AdminService {
     const pendingGroups = await this.prisma.group.count({
       where: { status: 'PENDING' },
     });
-    const totalRevenue = await this.prisma.subscription.aggregate({
-      _sum: { plan: { select: { price: true } } },
+    
+    // Fetch approved subscriptions with plan data to calculate revenue
+    const approvedSubscriptions = await this.prisma.subscription.findMany({
       where: { status: 'APPROVED' },
+      include: { plan: true },
     });
+    
+    // Calculate total revenue by summing plan prices
+    const totalRevenue = approvedSubscriptions.reduce(
+      (sum, subscription) => sum + subscription.plan.price,
+      0,
+    );
 
     return {
       totalUsers,
       totalGroups,
       totalSubscriptions,
       pendingGroups,
-      totalRevenue: totalRevenue._sum?.price || 0,
+      totalRevenue,
     };
   }
 
@@ -42,7 +50,7 @@ export class AdminService {
     const groups = await this.prisma.group.findMany({
       where,
       include: {
-        owner: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
         category: true,
         _count: { select: { memberships: true } },
       },
@@ -73,7 +81,7 @@ export class AdminService {
       where: { id: groupId },
       data: { status: 'APPROVED' },
       include: {
-        owner: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
         category: true,
       },
     });
@@ -98,9 +106,25 @@ export class AdminService {
       where: { id: groupId },
       data: { status: 'REJECTED' },
       include: {
-        owner: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
         category: true,
       },
     });
+  }
+
+  async getGroupStatistics() {
+    const [pending, approved, rejected, total] = await Promise.all([
+      this.prisma.group.count({ where: { status: 'PENDING' } }),
+      this.prisma.group.count({ where: { status: 'APPROVED' } }),
+      this.prisma.group.count({ where: { status: 'REJECTED' } }),
+      this.prisma.group.count(),
+    ]);
+
+    return {
+      pending,
+      approved,
+      rejected,
+      total,
+    };
   }
 }

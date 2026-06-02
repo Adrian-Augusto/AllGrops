@@ -10,6 +10,9 @@ import { SubscriptionsModule } from './modules/subscriptions/subscription.module
 import { AdminModule } from './modules/admin/admin.module';
 import { PlansModule } from './modules/plans/plans.module';
 import { PostsModule } from './modules/posts/post.module';
+import { MailModule } from './modules/mail/mail.module';
+import { UploadModule } from './modules/upload/upload.module';
+import { TermsModule } from './modules/terms/terms.module';
 
 @Module({
   imports: [
@@ -27,6 +30,9 @@ import { PostsModule } from './modules/posts/post.module';
     AdminModule,
     PlansModule,
     PostsModule,
+    MailModule,
+    UploadModule,
+    TermsModule,
   ],
 })
 export class AppModule {}

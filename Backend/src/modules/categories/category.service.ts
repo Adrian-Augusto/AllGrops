@@ -6,7 +6,7 @@ export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
   async findAll() {
-    return this.prisma.category.findMany({ include: { communities: true } });
+    return this.prisma.category.findMany({ include: { groups: true } });
   }
 
   async create(name: string) {
@@ -16,7 +16,7 @@ export class CategoriesService {
   async findOne(id: string) {
     const category = await this.prisma.category.findUnique({
       where: { id },
-      include: { communities: true },
+      include: { groups: true },
     });
     if (!category) {
       throw new NotFoundException('Category not found');

@@ -1,0 +1,247 @@
+{
+  "name": "AllGrops Backend - Payment Endpoint Test",
+  "description": "Collection de testes para o endpoint POST /api/v1/payments/create",
+  "requests": [
+    {
+      "name": "1️⃣ Obter Token JWT (Login)",
+      "method": "POST",
+      "url": "http://localhost:3000/api/v1/auth/login",
+      "description": "Primeiro, faça login para obter um JWT token",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "user@example.com",
+        "password": "senha123"
+      },
+      "expectedResponse": {
+        "accessToken": "eyJhbGc...",
+        "user": {
+          "id": "uuid",
+          "email": "user@example.com",
+          "needsTermsAcceptance": true
+        }
+      }
+    },
+    {
+      "name": "2️⃣ Aceitar Termos (Obrigatório)",
+      "method": "POST",
+      "url": "http://localhost:3000/api/v1/terms/accept",
+      "description": "Se needsTermsAcceptance=true, aceite os termos primeiro",
+      "headers": {
+        "Authorization": "Bearer {JWT_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "accepted": true
+      },
+      "expectedResponse": {
+        "message": "Termos aceitos com sucesso",
+        "user": {
+          "id": "uuid",
+          "email": "user@example.com",
+          "termsAccepted": true,
+          "termsVersion": 1
+        }
+      }
+    },
+    {
+      "name": "3️⃣ Criar Grupo (Opcional)",
+      "method": "POST",
+      "url": "http://localhost:3000/api/v1/groups",
+      "description": "Se não tiver um grupo, crie um antes de destacar",
+      "headers": {
+        "Authorization": "Bearer {JWT_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "name": "Meu Grupo",
+        "description": "Descrição do grupo",
+        "link": "https://facebook.com/grupo",
+        "platform": "facebook",
+        "photoUrl": "https://example.com/photo.jpg"
+      },
+      "expectedResponse": {
+        "id": "group-uuid",
+        "name": "Meu Grupo",
+        "status": "PENDING"
+      }
+    },
+    {
+      "name": "4️⃣ Listar Planos Disponíveis",
+      "method": "GET",
+      "url": "http://localhost:3000/api/v1/payments/plans",
+      "description": "Verifique os planos disponíveis antes de criar pagamento",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "expectedResponse": [
+        {
+          "id": "plan-uuid-monthly",
+          "name": "monthly",
+          "price": 9.9,
+          "duration": 30,
+          "type": "BASIC",
+          "description": "Destaque do grupo na categoria por 30 dias",
+          "isActive": true
+        },
+        {
+          "id": "plan-uuid-quarterly",
+          "name": "quarterly",
+          "price": 24.9,
+          "duration": 90,
+          "type": "BASIC"
+        },
+        {
+          "id": "plan-uuid-annual",
+          "name": "annual",
+          "price": 79.9,
+          "duration": 365,
+          "type": "PREMIUM"
+        }
+      ]
+    },
+    {
+      "name": "5️⃣ Criar Pagamento com Slug",
+      "method": "POST",
+      "url": "http://localhost:3000/api/v1/payments/create",
+      "description": "Crie um pagamento usando o slug do plano (recomendado)",
+      "headers": {
+        "Authorization": "Bearer {JWT_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "planId": "monthly",
+        "groupId": "seu-group-uuid-aqui"
+      },
+      "expectedResponse": {
+        "init_point": "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=123456789",
+        "preference_id": "123456789",
+        "idempotency_key": "user-uuid:group-uuid:monthly:subscription-uuid"
+      },
+      "notes": "Use o init_point para redirecionar o usuário ao checkout"
+    },
+    {
+      "name": "6️⃣ Criar Pagamento com UUID",
+      "method": "POST",
+      "url": "http://localhost:3000/api/v1/payments/create",
+      "description": "Alternativa: Use o UUID do plano ao invés do slug",
+      "headers": {
+        "Authorization": "Bearer {JWT_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "planId": "plan-uuid-obtained-from-get-plans",
+        "groupId": "seu-group-uuid-aqui"
+      },
+      "expectedResponse": {
+        "init_point": "https://www.mercadopago.com.br/checkout/v1/...",
+        "preference_id": "123456789",
+        "idempotency_key": "..."
+      }
+    },
+    {
+      "name": "7️⃣ Verificar Status de Termos",
+      "method": "GET",
+      "url": "http://localhost:3000/api/v1/terms/status",
+      "description": "Verifique se há novos termos para aceitar",
+      "headers": {
+        "Authorization": "Bearer {JWT_TOKEN}"
+      },
+      "expectedResponse": {
+        "termsAccepted": true,
+        "userVersion": 1,
+        "currentVersion": 1,
+        "needsUpdate": false
+      }
+    },
+    {
+      "name": "❌ Erro: Usuário não autenticado",
+      "method": "POST",
+      "url": "http://localhost:3000/api/v1/payments/create",
+      "description": "Teste sem token JWT",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "planId": "monthly",
+        "groupId": "grupo-uuid"
+      },
+      "expectedResponse": {
+        "statusCode": 401,
+        "message": "Unauthorized"
+      }
+    },
+    {
+      "name": "❌ Erro: Termos não aceitos",
+      "method": "POST",
+      "url": "http://localhost:3000/api/v1/payments/create",
+      "description": "Teste sem aceitar termos primeiro",
+      "headers": {
+        "Authorization": "Bearer {JWT_TOKEN_SEM_TERMOS}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "planId": "monthly",
+        "groupId": "grupo-uuid"
+      },
+      "expectedResponse": {
+        "statusCode": 403,
+        "message": "Você deve aceitar os termos de uso antes de acessar este recurso. Acesse /termos/accept"
+      }
+    },
+    {
+      "name": "❌ Erro: Plano inválido",
+      "method": "POST",
+      "url": "http://localhost:3000/api/v1/payments/create",
+      "description": "Teste com plano que não existe",
+      "headers": {
+        "Authorization": "Bearer {JWT_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "planId": "invalid-plan-slug",
+        "groupId": "grupo-uuid"
+      },
+      "expectedResponse": {
+        "statusCode": 400,
+        "message": "Plano não encontrado ou inativo"
+      }
+    },
+    {
+      "name": "❌ Erro: Grupo inválido",
+      "method": "POST",
+      "url": "http://localhost:3000/api/v1/payments/create",
+      "description": "Teste com grupo que não existe",
+      "headers": {
+        "Authorization": "Bearer {JWT_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "planId": "monthly",
+        "groupId": "invalid-group-uuid"
+      },
+      "expectedResponse": {
+        "statusCode": 400,
+        "message": "Grupo não encontrado"
+      }
+    }
+  ],
+  "setup": {
+    "prerequisites": [
+      "Backend rodando em http://localhost:3000",
+      "Banco de dados PostgreSQL configurado",
+      "Variáveis de ambiente configuradas (.env)",
+      "Seed de planos executado: npm run seed:plans"
+    ],
+    "steps": [
+      "1. Execute o seed: npm run seed:plans",
+      "2. Obtenha um JWT token via login (requisição 1)",
+      "3. Se necessário, aceite os termos (requisição 2)",
+      "4. Obtenha um grupo válido (criar ou usar existente)",
+      "5. Verifique os planos disponíveis (requisição 4)",
+      "6. Crie um pagamento (requisição 5 ou 6)",
+      "7. Use o init_point para redirecionar ao checkout"
+    ]
+  }
+}
