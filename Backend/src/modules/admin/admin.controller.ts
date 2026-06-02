@@ -8,14 +8,12 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  Body,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { AdminGuard } from './admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FeaturedGroupsService } from '../groups/featured-groups.service';
-import { MailService } from '../mail/mail.service';
 
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -25,7 +23,6 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly featuredGroupsService: FeaturedGroupsService,
-    private readonly mailService: MailService,
   ) {}
 
   @Get('stats')
@@ -82,31 +79,5 @@ export class AdminController {
   @ApiResponse({ status: 200, description: 'Featured groups retrieved successfully' })
   async getFeaturedGroups() {
     return this.featuredGroupsService.getFeaturedGroups();
-  }
-
-  @Post('test-email')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Test email configuration' })
-  @ApiResponse({ status: 200, description: 'Email test result' })
-  async testEmail() {
-    return this.mailService.testEmailConnection();
-  }
-
-  @Post('send-test-email')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Send a test email' })
-  @ApiResponse({ status: 200, description: 'Test email sent' })
-  async sendTestEmail(@Body() body: { to: string }) {
-    try {
-      await this.mailService.sendGroupStatusEmail(
-        body.to,
-        'Teste AllGrops',
-        'APPROVED',
-      );
-      return { success: true, message: `Email enviado para ${body.to}` };
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      return { success: false, message: `Erro: ${msg}` };
-    }
   }
 }
