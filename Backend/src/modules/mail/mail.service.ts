@@ -167,7 +167,8 @@ export class MailService {
     reason?: string,
   ): { subject: string; htmlContent: string } {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
-    const logoUrl = 'https://via.placeholder.com/200x60?text=AllGrops'; // Substitua com sua logo real
+    const backendUrl = this.configService.get<string>('BACKEND_URL') || 'http://localhost:8080';
+    const logoUrl = `${backendUrl}/img/e53883e9-1f35-436b-a406-790d9d3d0fd6.png`;
 
     if (status === 'APPROVED') {
       return {
