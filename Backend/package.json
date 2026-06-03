@@ -4,11 +4,12 @@
   "description": "Plataforma de Comunidades Online com NestJS, Prisma e PostgreSQL",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "nest build",
     "start": "node dist/main.js",
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "postinstall": "npm run build"
   },
   "keywords": [],
   "author": "",
