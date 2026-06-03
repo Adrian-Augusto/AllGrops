@@ -44,10 +44,13 @@ export class MailService {
 
   async sendGroupDeletedEmail(to: string, groupName: string): Promise<void> {
     try {
+      const backendUrl = this.configService.get<string>('BACKEND_URL') || 'http://localhost:8080';
+      const logoUrl = `${backendUrl}/img/e53883e9-1f35-436b-a406-790d9d3d0fd6.png`;
       const subject = '🗑️ Seu grupo foi deletado';
       const htmlContent = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white;">
+            <img src="${logoUrl}" alt="AllGrops Logo" style="max-width: 200px; margin-bottom: 10px;">
             <h1 style="margin: 0; font-size: 28px;">🔔 AllGrops</h1>
             <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">Comunidade de Grupos</p>
           </div>
@@ -95,10 +98,13 @@ export class MailService {
 
   async sendGroupExpiredEmail(to: string, groupName: string): Promise<void> {
     try {
+      const backendUrl = this.configService.get<string>('BACKEND_URL') || 'http://localhost:8080';
+      const logoUrl = `${backendUrl}/img/e53883e9-1f35-436b-a406-790d9d3d0fd6.png`;
       const subject = '🔔 Seu anúncio expirou - AllGrops';
       const htmlContent = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white;">
+            <img src="${logoUrl}" alt="AllGrops Logo" style="max-width: 200px; margin-bottom: 10px;">
             <h1 style="margin: 0; font-size: 28px;">🔔 AllGrops</h1>
             <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">Comunidade de Grupos</p>
           </div>
@@ -176,6 +182,7 @@ export class MailService {
         htmlContent: `
           <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white;">
+              <img src="${logoUrl}" alt="AllGrops Logo" style="max-width: 200px; margin-bottom: 10px;">
               <h1 style="margin: 0; font-size: 28px;">🎉 AllGrops</h1>
               <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">Comunidade de Grupos</p>
             </div>
@@ -219,6 +226,7 @@ export class MailService {
         htmlContent: `
           <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white;">
+              <img src="${logoUrl}" alt="AllGrops Logo" style="max-width: 200px; margin-bottom: 10px;">
               <h1 style="margin: 0; font-size: 28px;">🔔 AllGrops</h1>
               <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">Comunidade de Grupos</p>
             </div>
