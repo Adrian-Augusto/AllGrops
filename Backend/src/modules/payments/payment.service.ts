@@ -84,7 +84,7 @@ export class PaymentsService {
       }
 
       // Create Mercado Pago preference
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://allgrops.onrender.com';
       const preference: any = {
         items: [
           {

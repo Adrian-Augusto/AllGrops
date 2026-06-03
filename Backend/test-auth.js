@@ -43,7 +43,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const jwt = __importStar(require("jsonwebtoken"));
-const API_BASE = process.env.API_BASE || 'http://localhost:3000';
+const API_BASE = process.env.API_BASE || 'https://allgrops.onrender.com';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const results = [];
 async function test(name, fn) {

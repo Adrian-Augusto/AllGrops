@@ -6,7 +6,7 @@ import axios from 'axios';
  * Uso: npx ts-node test-payment-create.ts
  */
 
-const API_URL = 'http://localhost:3000/api/v1';
+const API_URL = 'https://allgrops.onrender.com/api/v1';
 
 // Configuração de teste
 const testConfig = {

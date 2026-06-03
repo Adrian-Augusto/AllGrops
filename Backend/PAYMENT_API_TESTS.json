@@ -5,7 +5,7 @@
     {
       "name": "1️⃣ Obter Token JWT (Login)",
       "method": "POST",
-      "url": "http://localhost:3000/api/v1/auth/login",
+      "url": "https://allgrops.onrender.com/api/v1/auth/login",
       "description": "Primeiro, faça login para obter um JWT token",
       "headers": {
         "Content-Type": "application/json"
@@ -26,7 +26,7 @@
     {
       "name": "2️⃣ Aceitar Termos (Obrigatório)",
       "method": "POST",
-      "url": "http://localhost:3000/api/v1/terms/accept",
+      "url": "https://allgrops.onrender.com/api/v1/terms/accept",
       "description": "Se needsTermsAcceptance=true, aceite os termos primeiro",
       "headers": {
         "Authorization": "Bearer {JWT_TOKEN}",
@@ -48,7 +48,7 @@
     {
       "name": "3️⃣ Criar Grupo (Opcional)",
       "method": "POST",
-      "url": "http://localhost:3000/api/v1/groups",
+      "url": "https://allgrops.onrender.com/api/v1/groups",
       "description": "Se não tiver um grupo, crie um antes de destacar",
       "headers": {
         "Authorization": "Bearer {JWT_TOKEN}",
@@ -70,7 +70,7 @@
     {
       "name": "4️⃣ Listar Planos Disponíveis",
       "method": "GET",
-      "url": "http://localhost:3000/api/v1/payments/plans",
+      "url": "https://allgrops.onrender.com/api/v1/payments/plans",
       "description": "Verifique os planos disponíveis antes de criar pagamento",
       "headers": {
         "Content-Type": "application/json"
@@ -104,7 +104,7 @@
     {
       "name": "5️⃣ Criar Pagamento com Slug",
       "method": "POST",
-      "url": "http://localhost:3000/api/v1/payments/create",
+      "url": "https://allgrops.onrender.com/api/v1/payments/create",
       "description": "Crie um pagamento usando o slug do plano (recomendado)",
       "headers": {
         "Authorization": "Bearer {JWT_TOKEN}",
@@ -124,7 +124,7 @@
     {
       "name": "6️⃣ Criar Pagamento com UUID",
       "method": "POST",
-      "url": "http://localhost:3000/api/v1/payments/create",
+      "url": "https://allgrops.onrender.com/api/v1/payments/create",
       "description": "Alternativa: Use o UUID do plano ao invés do slug",
       "headers": {
         "Authorization": "Bearer {JWT_TOKEN}",
@@ -143,7 +143,7 @@
     {
       "name": "7️⃣ Verificar Status de Termos",
       "method": "GET",
-      "url": "http://localhost:3000/api/v1/terms/status",
+      "url": "https://allgrops.onrender.com/api/v1/terms/status",
       "description": "Verifique se há novos termos para aceitar",
       "headers": {
         "Authorization": "Bearer {JWT_TOKEN}"
@@ -158,7 +158,7 @@
     {
       "name": "❌ Erro: Usuário não autenticado",
       "method": "POST",
-      "url": "http://localhost:3000/api/v1/payments/create",
+      "url": "https://allgrops.onrender.com/api/v1/payments/create",
       "description": "Teste sem token JWT",
       "headers": {
         "Content-Type": "application/json"
@@ -175,7 +175,7 @@
     {
       "name": "❌ Erro: Termos não aceitos",
       "method": "POST",
-      "url": "http://localhost:3000/api/v1/payments/create",
+      "url": "https://allgrops.onrender.com/api/v1/payments/create",
       "description": "Teste sem aceitar termos primeiro",
       "headers": {
         "Authorization": "Bearer {JWT_TOKEN_SEM_TERMOS}",
@@ -193,7 +193,7 @@
     {
       "name": "❌ Erro: Plano inválido",
       "method": "POST",
-      "url": "http://localhost:3000/api/v1/payments/create",
+      "url": "https://allgrops.onrender.com/api/v1/payments/create",
       "description": "Teste com plano que não existe",
       "headers": {
         "Authorization": "Bearer {JWT_TOKEN}",
@@ -211,7 +211,7 @@
     {
       "name": "❌ Erro: Grupo inválido",
       "method": "POST",
-      "url": "http://localhost:3000/api/v1/payments/create",
+      "url": "https://allgrops.onrender.com/api/v1/payments/create",
       "description": "Teste com grupo que não existe",
       "headers": {
         "Authorization": "Bearer {JWT_TOKEN}",
@@ -229,7 +229,7 @@
   ],
   "setup": {
     "prerequisites": [
-      "Backend rodando em http://localhost:3000",
+      "Backend rodando em https://allgrops.onrender.com",
       "Banco de dados PostgreSQL configurado",
       "Variáveis de ambiente configuradas (.env)",
       "Seed de planos executado: npm run seed:plans"

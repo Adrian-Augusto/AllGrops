@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const API_URL = 'http://localhost:8080/api/v1';
+const API_URL = 'https://allgrops.onrender.com/api/v1';
 
 async function testAuth() {
   console.log('=== Testing Backend Authentication ===\n');

@@ -2,7 +2,7 @@
  * TESTE DAS ROTAS DE DESTAQUE
  */
 
-const http = require('http');
+const https = require('https');
 
 // Token JWT fake (normalmente vem de login)
 const TOKEN = 'seu_token_jwt_aqui';
@@ -10,8 +10,8 @@ const TOKEN = 'seu_token_jwt_aqui';
 function makeRequest(method, path, body = null) {
   return new Promise((resolve, reject) => {
     const options = {
-      hostname: 'localhost',
-      port: 8080,
+      hostname: 'allgrops.onrender.com',
+      port: 443,
       path: `/api/v1${path}`,
       method: method,
       headers: {
@@ -20,7 +20,7 @@ function makeRequest(method, path, body = null) {
       },
     };
 
-    const req = http.request(options, (res) => {
+    const req = https.request(options, (res) => {
       let data = '';
 
       res.on('data', (chunk) => {

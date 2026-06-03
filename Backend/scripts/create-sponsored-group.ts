@@ -61,7 +61,7 @@ async function main() {
   console.log('   Ativa:', subscription.isActive);
 
   console.log('\n🎉 Grupo agora aparecerá como FEATURED na listagem!');
-  console.log('   Teste em: http://localhost:8080/api/v1/groups');
+  console.log('   Teste em: https://allgrops.onrender.com/api/v1/groups');
 }
 
 main()

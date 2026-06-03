@@ -79,7 +79,7 @@ async function main() {
     console.log(`   Link: ${newGroup.link}`);
     console.log(`   Foto: ${newGroup.photoUrl}`);
     console.log(`   Criado por: ${newGroup.createdBy?.name}`);
-    console.log(`\n🌐 Acesso via API: http://localhost:8080/api/v1/groups/${newGroup.id}`);
+    console.log(`\n🌐 Acesso via API: https://allgrops.onrender.com/api/v1/groups/${newGroup.id}`);
 
     await prisma.$disconnect();
   } catch (error) {

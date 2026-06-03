@@ -9,7 +9,7 @@ export class ImageProxyInterceptor implements NestInterceptor {
     let baseUrl = '';
     if (request && typeof request.get === 'function') {
       const protocol = request.protocol || 'http';
-      const host = request.get('host') || 'localhost:8080';
+      const host = request.get('host') || 'allgrops.onrender.com';
       baseUrl = `${protocol}://${host}`;
     }
 

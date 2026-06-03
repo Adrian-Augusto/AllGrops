@@ -100,9 +100,10 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   // Enable CORS for Google OAuth redirect
-  const frontendUrl = configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
+  const frontendUrl = configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
   const allowedOrigins = [
     frontendUrl,
+    'https://allgrops.onrender.com',
     'http://localhost:3000',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
@@ -155,18 +156,16 @@ async function bootstrap() {
       .setTitle('AllGrops API')
       .setDescription('API documentation for AllGrops - Plataforma de Comunidades Online')
       .setVersion('1.0.0')
-      .addServer('http://localhost:8080/api/v1')
+      .addServer('https://allgrops.onrender.com/api/v1')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/v1/docs', app, document);
+    console.log('Swagger docs available at: https://allgrops.onrender.com/api/v1/docs');
   }
 
   await app.listen(8080);
-  console.log('Application is running on: http://localhost:8080/api/v1');
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('Swagger docs available at: http://localhost:8080/api/v1/docs');
-  }
+  console.log('Application is running on: https://allgrops.onrender.com/api/v1');
 }
 
 bootstrap();

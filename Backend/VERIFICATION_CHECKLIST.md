@@ -20,7 +20,7 @@
 ## 🧪 Testes de Validação
 
 ### Pré-requisitos
-- [ ] Backend rodando em http://localhost:3000
+- [ ] Backend rodando em https://allgrops.onrender.com
 - [ ] Database populado com usuários (pelo menos 1 ADMIN e 1 COMMON)
 
 ### Executar Testes
@@ -28,7 +28,7 @@
 #### Opção 1: Script Shell (Linux/Mac)
 ```bash
 cd /path/to/backend
-bash test-auth.sh http://localhost:3000
+bash test-auth.sh https://allgrops.onrender.com
 ```
 
 #### Opção 2: Script TypeScript
@@ -41,7 +41,7 @@ npx ts-node test-auth.ts
 
 **1. Login como ADMIN:**
 ```bash
-curl -X POST http://localhost:3000/auth/login \
+curl -X POST https://allgrops.onrender.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "$ADMIN_EMAIL",
@@ -82,7 +82,7 @@ print(json.dumps(json.loads(base64.urlsafe_b64decode(payload)), indent=2))
 
 **3. Acessar /admin/stats:**
 ```bash
-curl -X GET http://localhost:3000/admin/stats \
+curl -X GET https://allgrops.onrender.com/admin/stats \
   -H "Authorization: Bearer seu-token-aqui"
 ```
 
@@ -91,7 +91,7 @@ Resultado esperado: **HTTP 200** com dados de estatísticas
 **4. Testar com usuário COMMON:**
 ```bash
 # Login
-curl -X POST http://localhost:3000/auth/login \
+curl -X POST https://allgrops.onrender.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "$USER_EMAIL",
@@ -99,7 +99,7 @@ curl -X POST http://localhost:3000/auth/login \
   }'
 
 # Tentar acessar admin (deve falhar)
-curl -X GET http://localhost:3000/admin/stats \
+curl -X GET https://allgrops.onrender.com/admin/stats \
   -H "Authorization: Bearer token-comum"
 ```
 
@@ -171,13 +171,13 @@ SELECT id, email, role FROM "User" WHERE email = '$ADMIN_EMAIL';
 **Solução:**
 ```bash
 # 1. Fazer logout
-curl -X POST http://localhost:3000/auth/logout
+curl -X POST https://allgrops.onrender.com/auth/logout
 
 # 2. Limpar cookies/localStorage no navegador
 # Abra DevTools (F12) > Application > Storage > Limpar Tudo
 
 # 3. Fazer novo login
-curl -X POST http://localhost:3000/auth/login \
+curl -X POST https://allgrops.onrender.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "$ADMIN_EMAIL",
@@ -199,7 +199,7 @@ curl -X POST http://localhost:3000/auth/login \
 **Debug:**
 ```bash
 # Verificar que o header está correto
-curl -X GET http://localhost:3000/admin/stats \
+curl -X GET https://allgrops.onrender.com/admin/stats \
   -H "Authorization: Bearer seu-token-aqui" \
   -v
 

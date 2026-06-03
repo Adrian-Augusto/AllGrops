@@ -62,7 +62,7 @@ export class UploadController {
       success: true,
       message: 'Foto enviada com sucesso',
       photoUrl,
-      fullUrl: `http://localhost:8080/${photoUrl}`,
+      fullUrl: `https://allgrops.onrender.com/${photoUrl}`,
     };
   }
 }

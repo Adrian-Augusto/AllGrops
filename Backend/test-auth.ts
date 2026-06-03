@@ -11,7 +11,7 @@
 
 import * as jwt from 'jsonwebtoken';
 
-const API_BASE = process.env.API_BASE || 'http://localhost:3000';
+const API_BASE = process.env.API_BASE || 'https://allgrops.onrender.com';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 interface TestResult {

@@ -36,7 +36,7 @@ async function debugPhotos() {
         console.log(`   Procurando em: ${filePath}`);
         
         // Mostrar URL que será retornada
-        const fullUrl = `http://localhost:8080/${group.photoUrl}`;
+        const fullUrl = `https://allgrops.onrender.com/${group.photoUrl}`;
         console.log(`   URL para frontend: ${fullUrl}`);
       }
       console.log('');
@@ -64,12 +64,12 @@ async function debugPhotos() {
 
     // 3. Verificar se está sendo servido
     console.log('\n\n🌐 TESTE NO FRONTEND:\n');
-    console.log('1. Abra o navegador e vá para: http://localhost:8080/api/v1/groups');
+    console.log('1. Abra o navegador e vá para: https://allgrops.onrender.com/api/v1/groups');
     console.log('\n2. Procure por "photoUrl" na resposta (ex: "uploads/groups/xxx.jpg")');
     console.log('\n3. Copie a URL e tente acessar no navegador:');
     
     if (groups.length > 0 && groups[0].photoUrl) {
-      const testUrl = `http://localhost:8080/${groups[0].photoUrl}`;
+      const testUrl = `https://allgrops.onrender.com/${groups[0].photoUrl}`;
       console.log(`\n   ${testUrl}`);
       console.log(`\n   Se der erro 404, o arquivo não existe ou está no caminho errado`);
     }

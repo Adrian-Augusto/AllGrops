@@ -44,7 +44,7 @@ export class MailService {
 
   async sendGroupDeletedEmail(to: string, groupName: string): Promise<void> {
     try {
-      const backendUrl = this.configService.get<string>('BACKEND_URL') || 'http://localhost:8080';
+      const backendUrl = this.configService.get<string>('BACKEND_URL') || 'https://allgrops.onrender.com';
       const logoUrl = `${backendUrl}/img/e53883e9-1f35-436b-a406-790d9d3d0fd6.png`;
       const subject = '🗑️ Seu grupo foi deletado';
       const htmlContent = `
@@ -98,7 +98,7 @@ export class MailService {
 
   async sendGroupExpiredEmail(to: string, groupName: string): Promise<void> {
     try {
-      const backendUrl = this.configService.get<string>('BACKEND_URL') || 'http://localhost:8080';
+      const backendUrl = this.configService.get<string>('BACKEND_URL') || 'https://allgrops.onrender.com';
       const logoUrl = `${backendUrl}/img/e53883e9-1f35-436b-a406-790d9d3d0fd6.png`;
       const subject = '🔔 Seu anúncio expirou - AllGrops';
       const htmlContent = `
@@ -172,8 +172,8 @@ export class MailService {
     status: 'APPROVED' | 'REJECTED',
     reason?: string,
   ): { subject: string; htmlContent: string } {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
-    const backendUrl = this.configService.get<string>('BACKEND_URL') || 'http://localhost:8080';
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
+    const backendUrl = this.configService.get<string>('BACKEND_URL') || 'https://allgrops.onrender.com';
     const logoUrl = `${backendUrl}/img/e53883e9-1f35-436b-a406-790d9d3d0fd6.png`;
 
     if (status === 'APPROVED') {

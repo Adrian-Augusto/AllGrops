@@ -82,7 +82,7 @@ export class AuthController {
       // Tratamento de erros do Google OAuth
       if (error) {
         console.error('Google OAuth error:', error);
-        const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
+        const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
         return res.redirect(`${frontendUrl}/login?error=${error}`);
       }
 
@@ -104,13 +104,13 @@ export class AuthController {
       const result = await this.authService.googleLogin(userProfile);
 
       // Redirecionar para o frontend com o JWT na query string
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
       const redirectUrl = `${frontendUrl}/login-success?token=${result.accessToken}`;
       
       return res.redirect(redirectUrl);
     } catch (error) {
       console.error('Google OAuth callback error:', error);
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
       return res.redirect(`${frontendUrl}/login?error=auth_failed`);
     }
   }
