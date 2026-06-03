@@ -164,8 +164,9 @@ async function bootstrap() {
     console.log('Swagger docs available at: https://allgrops.onrender.com/api/v1/docs');
   }
 
-  await app.listen(8080);
-  console.log('Application is running on: https://allgrops.onrender.com/api/v1');
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
+  await app.listen(port, '0.0.0.0');
+  console.log(`Application is running on: http://0.0.0.0:${port}/api/v1`);
 }
 
 bootstrap();
