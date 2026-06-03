@@ -5,13 +5,13 @@
   "main": "dist/main.js",
   "scripts": {
     "dev": "ts-node src/main.ts",
-    "build": "prisma generate && tsc -p tsconfig.json",
+    "install:ci": "npm ci",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "build": "npm run prisma:generate && tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
-    "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
-    "postinstall": "prisma generate",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts"
   },
   "license": "ISC",
   "type": "commonjs",
