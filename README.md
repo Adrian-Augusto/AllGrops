@@ -1,202 +1,88 @@
-# 🌐 Plataforma de Comunidades Online
+# AllGrops - Plataforma de Comunidades Online
 
-Sistema completo para **criação, descoberta e gerenciamento de comunidades e grupos**, com suporte a **planos de destaque pagos** e integração com **Mercado Pago**.
+Este repositório contém a implementação de backend de uma plataforma de comunidades online construída com **NestJS**, **Prisma** e **PostgreSQL**.
 
----
+## Visão geral
 
-## 🚀 Sobre o Projeto
+O backend oferece suporte para:
+- Criação e gerenciamento de comunidades/grupos
+- Busca por categorias de comunidades
+- Sistema de destaque pago para comunidades
+- Integração com **Mercado Pago** para processamento de pagamentos
+- Controle de usuários, permissões e associações a comunidades
 
-Esta aplicação permite que usuários criem e participem de comunidades organizadas por categorias, com recursos avançados como:
+## Estrutura do projeto
 
-* 🔍 Busca por categorias
-* 👥 Gerenciamento de membros
-* ⭐ Destaque de comunidades (feature premium)
-* 💳 Integração com pagamentos (Mercado Pago)
-* 📡 API escalável com deploy em nuvem (Render)
+- `Backend/package.json` - dependências e scripts do backend
+- `Backend/tsconfig.json` - configuração TypeScript
+- `Backend/prisma/schema.prisma` - modelo de dados Prisma
+- `Backend/src/main.ts` - ponto de entrada da aplicação
+- `Backend/src/app.module.ts` - módulo raiz do NestJS
+- `Backend/src/prisma` - serviço Prisma compartilhado
+- `Backend/src/modules` - módulos organizados por responsabilidade:
+  - `auth` - autenticação e registro
+  - `users` - CRUD e consultas de usuários
+  - `communities` - CRUD e ações de comunidades
+  - `categories` - gerenciamento de categorias
+  - `payments` - integração Mercado Pago
+  - `subscriptions` - assinaturas e status de pagamento
 
----
+## Configuração inicial
 
-## 🏗️ Arquitetura
-
-O projeto segue uma arquitetura **MVC modular com NestJS**, garantindo:
-
-* Separação clara de responsabilidades
-* Escalabilidade
-* Facilidade de manutenção
-
-```
-src/
-  modules/
-    users/
-    communities/
-    categories/
-    payments/
-    subscriptions/
-  prisma/
-```
-
----
-
-## 🧰 Tecnologias Utilizadas
-
-### Backend
-
-* NestJS
-* Prisma ORM
-* PostgreSQL
-
-### Frontend
-
-* React
-* Next.js
-
-### Infraestrutura
-
-* Render (deploy da API)
-* Banco PostgreSQL gerenciado
-
-### Pagamentos
-
-* Mercado Pago SDK
-
----
-
-## ⚙️ Funcionalidades
-
-### 👤 Usuários
-
-* Cadastro e autenticação
-* Participação em comunidades
-
-### 🏘️ Comunidades
-
-* Criação e gerenciamento
-* Associação com categorias
-* Sistema de membros (ADMIN / MEMBER)
-
-### 🔎 Busca
-
-* Filtro por categorias
-* Listagem de comunidades
-
-### ⭐ Destaque (Premium)
-
-* Comunidades podem ser destacadas
-* Ativação via pagamento
-
-### 💳 Pagamentos
-
-* Criação de preferência (checkout)
-* Webhook para confirmação automática
-* Atualização de status da assinatura
-
----
-
-## 💾 Modelagem de Dados (Resumo)
-
-Principais entidades:
-
-* **User**
-* **Community**
-* **Category**
-* **Membership**
-* **Plan**
-* **Subscription**
-
----
-
-## 🔌 Integração com Mercado Pago
-
-Fluxo de pagamento:
-
-1. Usuário seleciona plano
-2. Sistema cria preferência de pagamento
-3. Usuário realiza pagamento
-4. Webhook recebe confirmação
-5. Sistema ativa destaque da comunidade
-
----
-
-## 🚀 Deploy
-
-A aplicação está preparada para deploy no **Render**, garantindo:
-
-* Alta disponibilidade
-* Escalabilidade
-* Deploy contínuo
-
----
-
-## 📦 Instalação
+1. Copie o arquivo de exemplo de ambiente:
 
 ```bash
-# Clone o repositório
-git clone https://github.com/seu-usuario/seu-repo.git
-
-# Instale dependências
-npm install
-
-# Configure variáveis de ambiente
+cd Backend
 cp .env.example .env
+```
 
-# Rode as migrations
-npx prisma migrate dev
+2. Ajuste as variáveis de ambiente:
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `MERCADO_PAGO_ACCESS_TOKEN`
+- `MERCADO_PAGO_WEBHOOK_URL`
 
-# Inicie o servidor
+3. Instale as dependências:
+
+```bash
+npm install
+```
+
+4. Gere o cliente Prisma:
+
+```bash
+npm run prisma:generate
+```
+
+5. Execute a aplicação em modo de desenvolvimento:
+
+```bash
 npm run start:dev
 ```
 
----
+A API será exposta em `http://localhost:3000/api`.
 
-## 🔐 Variáveis de Ambiente
+## Rotas principais
 
-Exemplo:
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/users`
+- `GET /api/users/:id`
+- `POST /api/communities`
+- `GET /api/communities`
+- `GET /api/communities/:id`
+- `POST /api/communities/:id/join`
+- `POST /api/payments/create`
+- `POST /api/payments/webhook`
 
-```
-DATABASE_URL=
-JWT_SECRET=
-MERCADO_PAGO_ACCESS_TOKEN=
-MERCADO_PAGO_WEBHOOK_SECRET=
-```
+## Observações
 
----
+- A API ainda precisa de validação mais robusta de DTOs e autenticação JWT completa.
+- O destaque de comunidade depende da aprovação do pagamento via webhook.
 
-## 📌 Regras de Negócio
+## Como contribuir
 
-* Apenas o dono pode gerenciar a comunidade
-* Destaques só são ativados com pagamento aprovado
-* Usuários podem participar de múltiplas comunidades
-* Comunidades podem ter múltiplos membros
-
----
-
-## 🛠️ Melhorias Futuras
-
-* 🔔 Notificações em tempo real
-* 🖼️ Upload de imagens (avatars/capas)
-* 📊 Dashboard administrativo
-* ⚡ Cache com Redis
-* 🔎 Busca avançada com paginação
-
----
-
-## 🤝 Contribuição
-
-Contribuições são bem-vindas!
-
-1. Fork o projeto
-2. Crie uma branch (`feature/nova-feature`)
-3. Commit suas mudanças
-4. Abra um Pull Request
-
----
-
-## 📄 Licença
-
-Este projeto está sob a licença MIT.
-
----
-
-## 💡 Autor
-
-Desenvolvido por você 🚀
+1. Crie uma branch a partir de `development`
+2. Faça alterações
+3. Commit e push
+4. Abra um pull request

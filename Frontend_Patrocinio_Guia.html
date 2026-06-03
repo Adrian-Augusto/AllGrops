@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Patrocínio - Guia Frontend</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        h3 {
+            color: #7f8c8d;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            border-radius: 4px;
+        }
+
+        .status-box {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #27ae60;
+            background: #eafaf1;
+        }
+
+        .status-box.warning {
+            border-left-color: #f39c12;
+            background: #fef5e7;
+        }
+
+        .status-box.info {
+            border-left-color: #3498db;
+            background: #eaf2f8;
+        }
+
+        code {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            line-height: 1.4;
+        }
+
+        ul, ol {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #34495e;
+            color: white;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .badge-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .badge-info {
+            background: #3498db;
+            color: white;
+        }
+
+        .flow-diagram {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-family: monospace;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 20px;
+            }
+            h1 {
+                page-break-after: avoid;
+            }
+            h2 {
+                page-break-after: avoid;
+            }
+            .section {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌟 Sistema de Patrocínio de Grupos - Guia Frontend</h1>
+
+        <div class="section">
+            <h2>📋 Response da Criação de Grupo</h2>
+            <p>Ao criar um grupo, o backend retorna <code>sponsorshipInfo</code>:</p>
+            <pre>{
+  "id": "group-123",
+  "name": "Meu Grupo",
+  "status": "PENDING",
+  "sponsorshipInfo": {
+    "canSponsor": true,
+    "activeSponsoredCount": 2,
+    "maxAllowed": 5
+  }
+}</pre>
+        </div>
+
+        <div class="section">
+            <h2>🎯 Estados e Avisos</h2>
+
+            <h3>1️⃣ Pode Patrocinar</h3>
+            <div class="status-box">
+                <strong>Condição:</strong> <code>canSponsor: true</code><br>
+                <strong>Mensagem:</strong> "✅ Este grupo pode ser patrocinado!"<br>
+                <strong>Ação:</strong> Oferecer upgrade/plano de patrocínio
+            </div>
+
+            <h3>2️⃣ Limite Atingido</h3>
+            <div class="status-box warning">
+                <strong>Condição:</strong> <code>canSponsor: false</code> + <code>activeSponsoredCount: 5</code><br>
+                <strong>Mensagem:</strong> "⚠️ Você atingiu o limite de 5 grupos patrocinados.<br>Este grupo será gratuito. Atualize seu plano para patrocinar mais grupos."<br>
+                <strong>Ação:</strong> Botão "Fazer Upgrade" → Redirecionar para planos
+            </div>
+
+            <h3>3️⃣ Sem Plano Ativo</h3>
+            <div class="status-box info">
+                <strong>Condição:</strong> <code>canSponsor: false</code> + <code>activeSponsoredCount: 0</code><br>
+                <strong>Mensagem:</strong> "💡 Este grupo será gratuito. Adquira um plano de patrocínio para destacá-lo!"<br>
+                <strong>Ação:</strong> Botão "Ver Planos" → Mostrar opções (3, 7, 15, 30 dias)
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔄 Fluxo Recomendado</h2>
+            <ol>
+                <li><strong>Criar Grupo</strong> → POST /api/v1/groups</li>
+                <li><strong>Verificar Response:</strong>
+                    <ul>
+                        <li>Se <code>canSponsor === true</code>: Perguntar se quer patrocinar agora</li>
+                        <li>Se <code>canSponsor === false</code>: Avisar com mensagem amigável</li>
+                    </ul>
+                </li>
+                <li><strong>Mostrar Badge no Card:</strong>
+                    <ul>
+                        <li>Se patrocinado: <span class="badge badge-warning">🌟 PATROCINADO</span></li>
+                        <li>Se não patrocinado: nada ou <span class="badge badge-info">Gratuito</span></li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>📊 Integração com GET /limits</h2>
+            <pre>{
+  "canSponsor": true,
+  "sponsoredGroups": {
+    "active": 2,
+    "max": 5,
+    "remaining": 3
+  }
+}</pre>
+            <p>Use isso para mostrar barra de progresso:</p>
+            <pre>Grupos Patrocinados: 2/5 ⬜⬜⬜⬜⬜
+Espaço disponível: 3</pre>
+        </div>
+
+        <div class="section">
+            <h2>🎨 Exemplo de UI</h2>
+            <pre>┌─────────────────────────────────────┐
+│ Criar Novo Grupo                    │
+├─────────────────────────────────────┤
+│ Nome: [________________]             │
+│ Categoria: [Selecionar]              │
+│ Link: [________________]              │
+│                                      │
+│ 💡 Você tem 2/5 patrocínios         │
+│    Este grupo pode ser destacado!   │
+│                                      │
+│ [Cancelar] [Criar Grupo]            │
+└─────────────────────────────────────┘
+
+✅ Grupo criado!
+🌟 PATROCINADO até 02/07/2026
+[Ir para grupo]</pre>
+        </div>
+
+        <div class="section">
+            <h2>⚡ Casos de Erro</h2>
+            <pre>try {
+  const group = await createGroup(data);
+
+  if (!group.sponsorshipInfo.canSponsor) {
+    showWarning(
+      `Limite atingido:
+       ${group.sponsorshipInfo.activeSponsoredCount}/
+       ${group.sponsorshipInfo.maxAllowed}`
+    );
+  }
+} catch (error) {
+  showError(error.message);
+}</pre>
+        </div>
+
+        <div class="section">
+            <h2>💰 Planos Disponíveis</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Plano</th>
+                        <th>Preço</th>
+                        <th>Duração</th>
+                        <th>Max Patrocinados</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Patrocínio 3 Dias</td>
+                        <td>R$ 12,90</td>
+                        <td>3 dias</td>
+                        <td>5</td>
+                    </tr>
+                    <tr>
+                        <td>Patrocínio 7 Dias</td>
+                        <td>R$ 24,90</td>
+                        <td>7 dias</td>
+                        <td>3</td>
+                    </tr>
+                    <tr>
+                        <td>Premium 15 Dias</td>
+                        <td>R$ 39,90</td>
+                        <td>15 dias</td>
+                        <td>5</td>
+                    </tr>
+                    <tr>
+                        <td>Premium 30 Dias</td>
+                        <td>R$ 49,90</td>
+                        <td>30 dias</td>
+                        <td>7</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>🔑 Resumo de Implementação</h2>
+            <ul>
+                <li>✅ Grupos normais: <strong>SEM LIMITE</strong></li>
+                <li>✅ Grupos patrocinados: <strong>máximo 5 ativos</strong> (varia por plano)</li>
+                <li>✅ Response inclui <code>sponsorshipInfo</code> para avisar status</li>
+                <li>✅ Expiração automática quando data vence</li>
+                <li>✅ Avisos amigáveis ao frontend</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>📄 Guia Frontend - Sistema de Patrocínio de Grupos</p>
+            <p>Gerado: 02/06/2026</p>
+        </div>
+    </div>
+
+    <script>
+        // Script para facilitar impressão em PDF
+        window.addEventListener('load', function() {
+            console.log('💡 Para salvar como PDF: Ctrl+P ou Cmd+P → Selecione "Salvar como PDF"');
+        });
+    </script>
+</body>
+</html>

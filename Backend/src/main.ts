@@ -1,0 +1,172 @@
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { AppModule } from './app.module';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
+import * as express from 'express';
+import * as path from 'path';
+import { ImageProxyInterceptor } from './modules/upload/image-proxy.interceptor';
+import { PrismaService } from './prisma/prisma.service';
+
+async function ensureDefaultAdmin(prisma: PrismaService) {
+  const adminEmail = process.env.DEFAULT_ADMIN_EMAIL;
+  if (!adminEmail) {
+    console.log('⚠️  DEFAULT_ADMIN_EMAIL not set, skipping admin setup');
+    return;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: adminEmail },
+    });
+
+    if (user) {
+      if (user.role !== 'ADMIN') {
+        await prisma.user.update({
+          where: { email: adminEmail },
+          data: { role: 'ADMIN' },
+        });
+        console.log(`✅ User promoted to ADMIN`);
+      }
+    } else {
+      console.log(`⚠️  Admin user not found. Please create this user first.`);
+    }
+  } catch (error) {
+    console.error('Error ensuring default admin:', error);
+  }
+}
+
+async function bootstrap() {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const configService = app.get(ConfigService);
+  const prisma = app.get(PrismaService);
+
+  // Ensure default admin user exists in production
+  if (process.env.NODE_ENV === 'production') {
+    await ensureDefaultAdmin(prisma);
+  }
+
+  // Security: Apply helmet middleware for HTTP headers protection
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+      },
+    },
+    hsts: {
+      maxAge: 31536000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    },
+  }));
+
+  // Rate limiters for payment routes
+  const paymentLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10, // 10 requests per hour
+    message: 'Too many payment requests, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const webhookLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 100, // 100 requests per minute
+    message: 'Too many webhook requests',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // Apply rate limiters to specific routes
+  app.use('/api/v1/payments/create', paymentLimiter);
+  app.use('/api/v1/payments/webhook', webhookLimiter);
+
+  // Parse cookies
+  app.use(cookieParser());
+
+  // Parse JSON with larger limit
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+  app.useGlobalPipes(new ValidationPipe({ transform: true, forbidNonWhitelisted: false }));
+  app.useGlobalInterceptors(new ImageProxyInterceptor());
+  app.setGlobalPrefix('api/v1');
+
+  // Enable CORS for Google OAuth redirect
+  const frontendUrl = configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
+  const allowedOrigins = [
+    frontendUrl,
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+  ];
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      // If no origin (requests like curl, mobile apps, etc), allow
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
+  // Middleware specific to /uploads with CORS
+  app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const origin = req.headers.origin;
+    if (!origin || allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin || '*');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    }
+
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
+  // Serve static files for profile images
+  app.useStaticAssets(path.join(process.cwd(), 'uploads'), {
+    prefix: '/uploads',
+  });
+
+  // Serve static files for email logos and other assets
+  app.useStaticAssets(path.join(process.cwd(), 'img'), {
+    prefix: '/img',
+  });
+
+  // Only enable Swagger in development
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('AllGrops API')
+      .setDescription('API documentation for AllGrops - Plataforma de Comunidades Online')
+      .setVersion('1.0.0')
+      .addServer('http://localhost:8080/api/v1')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/v1/docs', app, document);
+  }
+
+  await app.listen(8080);
+  console.log('Application is running on: http://localhost:8080/api/v1');
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Swagger docs available at: http://localhost:8080/api/v1/docs');
+  }
+}
+
+bootstrap();
