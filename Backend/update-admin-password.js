@@ -1,14 +1,20 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
+require('dotenv').config();
 
 const prisma = new PrismaClient();
 
 async function createAdminWithPassword() {
   try {
-    const email = 'adriansilva7272@gmail.com';
-    const password = 'adrian12';
+    const email = process.env.DEFAULT_ADMIN_EMAIL || process.env.EMAIL_USER;
+    const password = process.env.DEFAULT_ADMIN_PASSWORD || 'change-me-immediately';
 
-    console.log('🔑 Atualizando admin com senha...');
+    if (!email) {
+      console.error('❌ EMAIL não configurado no .env!');
+      return;
+    }
+
+    console.log(`🔑 Atualizando admin (${email}) com senha...`);
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);

@@ -11,14 +11,14 @@
         "Content-Type": "application/json"
       },
       "body": {
-        "email": "user@example.com",
+        "email": "$TEST_EMAIL",
         "password": "senha123"
       },
       "expectedResponse": {
         "accessToken": "eyJhbGc...",
         "user": {
           "id": "uuid",
-          "email": "user@example.com",
+          "email": "$TEST_EMAIL",
           "needsTermsAcceptance": true
         }
       }
@@ -39,7 +39,7 @@
         "message": "Termos aceitos com sucesso",
         "user": {
           "id": "uuid",
-          "email": "user@example.com",
+          "email": "$TEST_EMAIL",
           "termsAccepted": true,
           "termsVersion": 1
         }

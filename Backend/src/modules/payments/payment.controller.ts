@@ -17,28 +17,6 @@ import { CreatePaymentDto, PaymentWebhookDto } from './dto/create-payment.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Request } from 'express';
-import rateLimit from 'express-rate-limit';
-
-// Rate limiters
-const createPaymentLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // 10 requests per hour
-  message: 'Too many payment requests, please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => {
-    // Skip rate limiting for non-POST requests
-    return req.method !== 'POST';
-  },
-});
-
-const webhookLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 100, // 100 requests per minute
-  message: 'Too many webhook requests',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
 
 @ApiTags('Payments')
 @Controller('payments')

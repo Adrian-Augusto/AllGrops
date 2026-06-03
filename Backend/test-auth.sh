@@ -18,10 +18,10 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}1️⃣ Teste: Login com usuário ADMIN${NC}"
 ADMIN_LOGIN=$(curl -s -X POST "$API_BASE/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@example.com",
-    "password": "senha-admin"
-  }')
+  -d "{
+    \"email\": \"${TEST_ADMIN_EMAIL:-admin@example.com}\",
+    \"password\": \"senha-admin\"
+  }")
 
 ADMIN_TOKEN=$(echo "$ADMIN_LOGIN" | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
 
@@ -88,10 +88,10 @@ echo ""
 echo -e "${BLUE}4️⃣ Teste: Login com usuário COMMON${NC}"
 USER_LOGIN=$(curl -s -X POST "$API_BASE/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "senha-user"
-  }')
+  -d "{
+    \"email\": \"${TEST_USER_EMAIL:-user@example.com}\",
+    \"password\": \"senha-user\"
+  }")
 
 USER_TOKEN=$(echo "$USER_LOGIN" | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
 

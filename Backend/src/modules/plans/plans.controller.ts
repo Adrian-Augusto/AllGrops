@@ -85,6 +85,20 @@ export class PlansController {
     return this.plansService.getPlans();
   }
 
+  @Get('active')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get current active subscription/plan' })
+  @ApiResponse({
+    status: 200,
+    description: 'Active subscription retrieved successfully',
+  })
+  async getActivePlan(@Req() req: any) {
+    const userId = req.user.id;
+    return this.plansService.getActivePlan(userId);
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard, TermsAcceptedGuard)
   @ApiBearerAuth()
@@ -125,7 +139,7 @@ export class PlansController {
     },
   })
   async getUserPlans(@CurrentUser() user: any) {
-    return this.plansService.getUserPlans(user.sub);
+    return this.plansService.getUserPlans(user.id);
   }
 
   @Post('subscribe')
@@ -139,6 +153,16 @@ export class PlansController {
       throw new BadRequestException('Group ID is required');
     }
     
-    return this.plansService.subscribeToPlan(user.sub, dto.groupId, dto.planId);
+    return this.plansService.subscribeToPlan(user.id, dto.groupId, dto.planId);
+  }
+
+  @Post('cancel')
+  @UseGuards(JwtAuthGuard, TermsAcceptedGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cancel user subscription' })
+  @ApiResponse({ status: 200, description: 'Subscription cancelled successfully' })
+  async cancelPlan(@CurrentUser() user: any) {
+    return this.plansService.cancelUserSubscription(user.id);
   }
 }

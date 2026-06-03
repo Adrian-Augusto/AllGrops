@@ -95,7 +95,7 @@ export class PaymentsService {
           },
         ],
         payer: {
-          email: 'not-set@example.com', // User fills this in checkout
+          email: process.env.MERCADO_PAGO_PAYER_EMAIL || 'noreply@allgrops.com',
         },
         notification_url: process.env.MERCADO_PAGO_WEBHOOK_URL,
         external_reference: externalReference,
@@ -137,6 +137,36 @@ export class PaymentsService {
     xSignature?: string,
     xRequestId?: string,
   ) {
+    // Validate webhook signature if secret is configured
+    const webhookSecret = this.configService.get<string>('MERCADO_PAGO_WEBHOOK_SECRET');
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (webhookSecret) {
+      const bodyString = JSON.stringify(body);
+      const isValidSignature = validateMercadoPagoSignature(
+        xSignature,
+        xRequestId,
+        bodyString,
+        webhookSecret,
+      );
+
+      if (!isValidSignature) {
+        this.logger.warn('Invalid webhook signature - rejecting request');
+        if (isProduction) {
+          throw new BadRequestException('Invalid webhook signature');
+        } else {
+          this.logger.warn('Dev mode: allowing request despite invalid signature');
+        }
+      }
+    } else {
+      if (isProduction) {
+        this.logger.error('MERCADO_PAGO_WEBHOOK_SECRET not configured in production');
+        throw new BadRequestException('Webhook secret not configured');
+      } else {
+        this.logger.warn('Dev mode: MERCADO_PAGO_WEBHOOK_SECRET not configured, skipping signature validation');
+      }
+    }
+
     try {
       // Log only safe fields
       const safeData = this.extractSafeData(body);

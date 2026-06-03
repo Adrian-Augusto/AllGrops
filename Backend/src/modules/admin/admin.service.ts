@@ -38,7 +38,7 @@ export class AdminService {
     const where: any = {};
     
     if (status) {
-      const validStatuses = ['PENDING', 'APPROVED', 'REJECTED'];
+      const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED'];
       if (!validStatuses.includes(status.toUpperCase())) {
         throw new BadRequestException(
           `Invalid status. Valid options: ${validStatuses.join(', ')}`,
@@ -125,6 +125,25 @@ export class AdminService {
       approved,
       rejected,
       total,
+    };
+  }
+
+  async getOnlineUsersCount() {
+    // Usuários online = últimos 15 minutos de atividade
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+
+    const onlineCount = await this.prisma.user.count({
+      where: {
+        lastActivityAt: {
+          gte: fifteenMinutesAgo,
+        },
+      },
+    });
+
+    return {
+      onlineUsers: onlineCount,
+      threshold: '15 minutes',
+      timestamp: new Date(),
     };
   }
 }

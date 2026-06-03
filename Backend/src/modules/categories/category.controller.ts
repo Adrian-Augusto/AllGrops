@@ -1,9 +1,14 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { ApiProperty, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiProperty, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { IsString, IsNotEmpty } from 'class-validator';
 import { CategoriesService } from './category.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AdminGuard } from '../admin/admin.guard';
 
 class CreateCategoryDto {
-  @ApiProperty({ example: 'Tecnologia' })
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   name: string;
 }
 
@@ -23,6 +28,8 @@ export class CategoriesController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
   create(@Body() dto: CreateCategoryDto) {
     return this.categoriesService.create(dto.name);
   }

@@ -19,6 +19,10 @@ model User {
   termsAccepted    Boolean        @default(false)
   termsVersion     Int            @default(0)
   termsAcceptedAt  DateTime?
+  // Online tracking
+  lastActivityAt   DateTime?
+  // Credit system
+  credit           Float          @default(0)
   createdAt        DateTime       @default(now())
   createdGroups    Group[]        @relation("GroupCreator")
   reviewedGroups   Group[]        @relation("GroupReviewer")
@@ -57,12 +61,19 @@ model Group {
   memberships     Membership[]
   subscriptions   Subscription[]
   posts           Post[]
+
+  @@index([status])
+  @@index([categoryId])
 }
 
 model Category {
   id     String  @id @default(uuid())
-  name   String  @unique
+  name   String
+  slug   String  @unique
   groups Group[]
+
+  @@unique([name(mode: "insensitive")])
+  @@index([slug])
 }
 
 model Membership {
@@ -77,30 +88,32 @@ model Membership {
 }
 
 model Plan {
-  id            String         @id @default(uuid())
-  name          String         @unique
-  price         Float
-  duration      Int            @default(30) // dias
-  type          PlanType       @default(BASIC)
-  description   String?
-  isActive      Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  subscriptions Subscription[]
+  id                    String         @id @default(uuid())
+  name                  String         @unique
+  price                 Float
+  type                  PlanType
+  description           String?
+  durationDays          Int            @default(30)
+  maxSponsoredGroups    Int            @default(0)
+  isActive              Boolean        @default(true)
+  createdAt             DateTime       @default(now())
+  subscriptions         Subscription[]
 }
 
 model Subscription {
-  id      String             @id @default(uuid())
-  userId  String
-  groupId String?            // Opcional: null para planos premium de conta
-  planId  String
-  status  SubscriptionStatus @default(PENDING)
-  isActive Boolean            @default(false)
+  id        String             @id @default(uuid())
+  userId    String
+  groupId   String?            // Opcional: null para planos premium de conta
+  planId    String
+  status    SubscriptionStatus @default(PENDING)
+  isActive  Boolean            @default(false)
+  expiresAt DateTime?          // Quando o patrocínio expira
   paymentId String?
-  createdAt DateTime          @default(now())
-  user    User               @relation(fields: [userId], references: [id])
-  group   Group?             @relation(fields: [groupId], references: [id])
-  plan    Plan               @relation(fields: [planId], references: [id])
-  payment Payment?
+  createdAt DateTime           @default(now())
+  user      User               @relation(fields: [userId], references: [id])
+  group     Group?             @relation(fields: [groupId], references: [id])
+  plan      Plan               @relation(fields: [planId], references: [id])
+  payment   Payment?
 }
 
 model Payment {
@@ -145,6 +158,7 @@ enum GroupStatus {
   PENDING
   APPROVED
   REJECTED
+  EXPIRED
 }
 
 enum SubscriptionStatus {
@@ -154,6 +168,8 @@ enum SubscriptionStatus {
 }
 
 enum PlanType {
-  BASIC
-  PREMIUM
+  SPONSORED_3_DAYS
+  SPONSORED_7_DAYS
+  PREMIUM_15_DAYS
+  PREMIUM_30_DAYS
 }

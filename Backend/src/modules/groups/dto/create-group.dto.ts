@@ -2,37 +2,53 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsUrl } from 'class-validator';
 
 export class CreateGroupDto {
-  @ApiProperty({ example: 'Grupo de Tecnologia' })
+  @ApiProperty({
+    example: 'Grupo de Tecnologia',
+    description: 'Nome/título do grupo'
+  })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  title: string;
 
-  @ApiProperty({ example: 'Grupo para discutir tecnologia e programação.' })
+  @ApiProperty({
+    example: 'Grupo para discutir tecnologia e programação.',
+    description: 'Descrição do grupo'
+  })
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiProperty({ example: 'https://example.com/grupo-tech' })
+  @ApiProperty({
+    example: 'https://discord.gg/xyz',
+    description: 'Link do grupo'
+  })
   @IsString()
   @IsNotEmpty()
   @IsUrl()
   link: string;
 
-  @ApiProperty({ example: 'Discord', description: 'Plataforma do grupo (Discord, Telegram, WhatsApp, etc.)' })
+  @ApiProperty({
+    example: 'Discord',
+    description: 'Plataforma (Discord, Telegram, WhatsApp, etc.)'
+  })
   @IsString()
   @IsNotEmpty()
   platform: string;
 
-  @ApiProperty({ 
-    example: 'uploads/groups/550e8400-e29b-41d4-a716-446655440000.jpg', 
-    description: 'Caminho relativo da foto (retornado após upload em POST /upload/group-photo)' 
+  @ApiProperty({
+    example: 'https://cdn.example.com/photo.jpg ou data:image/jpeg;base64,...',
+    description: 'URL da foto ou base64 da imagem'
   })
   @IsString()
   @IsNotEmpty()
   photoUrl: string;
 
-  @ApiProperty({ example: 'category-456', required: false, nullable: true, description: 'ID da categoria (deixar em branco se não houver)' })
+  @ApiProperty({
+    example: 'Tecnologia',
+    description: 'Nome da categoria (será criada automaticamente se não existir)',
+    required: true
+  })
   @IsString()
-  @IsOptional()
-  categoryId?: string | null;
+  @IsNotEmpty()
+  category: string;
 }

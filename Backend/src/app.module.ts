@@ -13,6 +13,7 @@ import { PostsModule } from './modules/posts/post.module';
 import { MailModule } from './modules/mail/mail.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { TermsModule } from './modules/terms/terms.module';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { TermsModule } from './modules/terms/terms.module';
     MailModule,
     UploadModule,
     TermsModule,
+    SchedulerModule,
   ],
 })
 export class AppModule {}

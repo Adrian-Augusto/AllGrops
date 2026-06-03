@@ -80,4 +80,12 @@ export class AdminController {
   async getFeaturedGroups() {
     return this.featuredGroupsService.getFeaturedGroups();
   }
+
+  @Get('users/online')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get count of online users (last 15 minutes)' })
+  @ApiResponse({ status: 200, description: 'Online users count retrieved successfully' })
+  async getOnlineUsersCount() {
+    return this.adminService.getOnlineUsersCount();
+  }
 }

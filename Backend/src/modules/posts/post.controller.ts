@@ -35,7 +35,7 @@ export class PostsController {
   })
   async createPost(
     @Param('groupId') groupId: string,
-    @CurrentUser() userId: string,
+    @CurrentUser() user: any,
     @Body() body: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
@@ -43,7 +43,7 @@ export class PostsController {
       throw new BadRequestException('title and description are required');
     }
 
-    return this.postsService.createPost(groupId, userId, {
+    return this.postsService.createPost(groupId, user.id, {
       title: body.title,
       description: body.description,
       link: body.link,
@@ -68,8 +68,8 @@ export class PostsController {
   async deletePost(
     @Param('groupId') groupId: string,
     @Param('postId') postId: string,
-    @CurrentUser() userId: string,
+    @CurrentUser() user: any,
   ) {
-    return this.postsService.deletePost(postId, groupId, userId);
+    return this.postsService.deletePost(postId, groupId, user.id);
   }
 }

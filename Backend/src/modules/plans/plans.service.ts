@@ -124,4 +124,96 @@ export class PlansService {
       total: subscriptions.length,
     };
   }
+
+  async cancelUserSubscription(userId: string) {
+    // Validate user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Find active subscription for this user
+    const activeSubscription = await this.prisma.subscription.findFirst({
+      where: {
+        userId,
+        status: { in: ['PENDING', 'APPROVED'] },
+        isActive: true,
+      },
+      include: {
+        plan: true,
+        group: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!activeSubscription) {
+      throw new BadRequestException(
+        'No active subscription found for this user',
+      );
+    }
+
+    // Update subscription to cancelled
+    const cancelledSubscription = await this.prisma.subscription.update({
+      where: { id: activeSubscription.id },
+      data: {
+        isActive: false,
+        status: 'REJECTED',
+        expiresAt: new Date(),
+      },
+      include: {
+        plan: true,
+        group: { select: { id: true, name: true } },
+      },
+    });
+
+    return {
+      message: 'Subscription cancelled successfully',
+      subscription: cancelledSubscription,
+    };
+  }
+
+  async getActivePlan(userId: string) {
+    const now = new Date();
+
+    // Buscar a assinatura ativa (isActive = true, status = APPROVED, não expirou)
+    const subscription = await this.prisma.subscription.findFirst({
+      where: {
+        userId,
+        isActive: true,
+        status: 'APPROVED',
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: now } },
+        ],
+      },
+      include: {
+        plan: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!subscription) {
+      return {
+        success: true,
+        data: null,
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        id: subscription.plan.id, // UUID do plano do backend
+        planId: subscription.plan.name, // ID amigável
+        expiresAt: subscription.expiresAt,
+        startedAt: subscription.createdAt,
+        userId: subscription.userId,
+        status: 'active',
+        planName: subscription.plan.name,
+        type: subscription.plan.type,
+        price: subscription.plan.price,
+      },
+    };
+  }
 }

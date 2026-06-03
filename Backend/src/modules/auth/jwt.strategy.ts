@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -11,7 +12,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private prisma: PrismaService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (request: Request) => {
+          // Try to get token from Authorization header first
+          const token = ExtractJwt.fromAuthHeaderAsBearerToken()(request);
+          if (token) {
+            return token;
+          }
+          // Fallback to cookie
+          return request?.cookies?.accessToken;
+        },
+      ]),
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('JWT_SECRET') || 'change-me',
     });
@@ -32,7 +43,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      // Retornar null em vez de lançar erro para evitar spam de logs
+      // O guard vai rejeitar a requisição automaticamente
+      return null;
     }
 
     // Retornar dados para request.user

@@ -7,29 +7,29 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { Response } from 'express';
 
 class RegisterDto {
-  @ApiProperty({ example: 'João Silva' })
+  @ApiProperty()
   name: string;
 
-  @ApiProperty({ example: 'joao@example.com' })
+  @ApiProperty()
   email: string;
 
-  @ApiProperty({ example: 'SenhaForte123!' })
+  @ApiProperty()
   password: string;
 }
 
 class LoginDto {
-  @ApiProperty({ example: 'joao@example.com' })
+  @ApiProperty()
   email: string;
 
-  @ApiProperty({ example: 'SenhaForte123!' })
+  @ApiProperty()
   password: string;
 }
 
 class ChangePasswordDto {
-  @ApiProperty({ example: 'SenhaForte123!' })
+  @ApiProperty()
   currentPassword: string;
 
-  @ApiProperty({ example: 'NovaSenhaForte456!' })
+  @ApiProperty()
   newPassword: string;
 }
 
@@ -116,11 +116,12 @@ export class AuthController {
   }
 
   @Get('google/profile')
+  @UseGuards(JwtAuthGuard)
   async getGoogleProfile(@Req() req: any) {
     // Returns current user profile if authenticated
     if (req.user) {
       return {
-        id: req.user.sub,
+        id: req.user.id,
         email: req.user.email,
       };
     }
@@ -140,6 +141,6 @@ export class AuthController {
   @Post('change-password')
   @UseGuards(JwtAuthGuard)
   async changePassword(@Req() req: any, @Body() body: ChangePasswordDto) {
-    return this.authService.changePassword(req.user.sub, body.currentPassword, body.newPassword);
+    return this.authService.changePassword(req.user.id, body.currentPassword, body.newPassword);
   }
 }

@@ -14,13 +14,14 @@ export class TermsAcceptedGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user || !user.sub) {
+    if (!user || !user.id) {
       throw new ForbiddenException('Usuário não autenticado');
     }
 
-    // Get user from database
+    // Get user from database - only select termsAccepted field for optimization
     const dbUser = await this.prisma.user.findUnique({
-      where: { id: user.sub },
+      where: { id: user.id },
+      select: { termsAccepted: true },
     });
 
     if (!dbUser) {

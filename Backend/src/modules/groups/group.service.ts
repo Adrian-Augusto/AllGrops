@@ -2,42 +2,44 @@ import { Injectable, ForbiddenException, NotFoundException, BadRequestException,
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { CreateGroupDto } from './dto/create-group.dto';
+import { mergeGroupsByFeatureStatus, sortGroupsBySponsorship } from './utils/group-merging';
+import { CategoryService } from './services/category.service';
+import { SubscriptionLimitsService } from '../subscriptions/services/subscription-limits.service';
 
 @Injectable()
 export class GroupsService {
   private readonly logger = new Logger(GroupsService.name);
+  private sponsoredCache: Map<string, { timestamp: number; groups: any[] }> = new Map();
 
-  constructor(private prisma: PrismaService, private mailService: MailService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mailService: MailService,
+    private categoryService: CategoryService,
+    private subscriptionLimitsService: SubscriptionLimitsService,
+  ) {}
 
   // USER ENDPOINTS
 
   async createGroup(userId: string, data: CreateGroupDto) {
-    if (!userId || !data.name) {
-      throw new BadRequestException('Missing required fields: userId, name');
-    }
-
-    // Garantir que categoryId seja null se não fornecido ou vazio
-    let validCategoryId: string | null = null;
-    
-    if (data.categoryId && data.categoryId.trim() !== '') {
-      const category = await this.prisma.category.findUnique({
-        where: { id: data.categoryId },
-      });
-      if (!category) {
-        throw new BadRequestException(`Category with id "${data.categoryId}" not found. Create a category first.`);
-      }
-      validCategoryId = data.categoryId;
+    if (!userId || !data.title) {
+      throw new BadRequestException('Missing required fields: userId, title');
     }
 
     try {
-      return await this.prisma.group.create({
+      // Verificar se usuário pode patrocinar (informar no response)
+      const sponsorshipInfo = await this.subscriptionLimitsService.canSponsorGroup(userId);
+
+      // Buscar ou criar categoria automaticamente
+      const category = await this.categoryService.findOrCreate(data.category);
+
+      const group = await this.prisma.group.create({
         data: {
-          name: data.name,
+          name: data.title,
           description: data.description,
           link: data.link,
           platform: data.platform,
           photoUrl: data.photoUrl,
-          categoryId: validCategoryId,
+          categoryId: category?.id || null,
           createdById: userId,
           status: 'PENDING',
         },
@@ -46,6 +48,11 @@ export class GroupsService {
           category: true,
         },
       });
+
+      return {
+        ...group,
+        sponsorshipInfo,
+      };
     } catch (error) {
       this.logger.error('Erro ao criar grupo:', error);
       if (error instanceof BadRequestException) {
@@ -57,21 +64,96 @@ export class GroupsService {
   }
 
   async findApproved(categoryId?: string, page = 1, limit = 10) {
-    const skip = (page - 1) * limit;
-    return this.prisma.group.findMany({
+    const baseWhere = {
+      status: 'APPROVED' as const,
+      ...(categoryId && { categoryId }),
+    };
+
+    const cacheKey = categoryId || 'all';
+    const cached = this.sponsoredCache.get(cacheKey);
+    const nowTime = Date.now();
+    const CACHE_TTL = 10 * 60 * 1000; // 10 minutos
+
+    let sponsoredList: any[];
+
+    if (cached && (nowTime - cached.timestamp < CACHE_TTL)) {
+      sponsoredList = cached.groups;
+    } else {
+      const now = new Date();
+      const sponsoredGroups = await this.prisma.group.findMany({
+        where: {
+          ...baseWhere,
+          subscriptions: {
+            some: {
+              isActive: true,
+              status: 'APPROVED',
+              expiresAt: { gt: now }
+            }
+          }
+        },
+        include: {
+          createdBy: { select: { id: true, name: true, email: true } },
+          category: true,
+          memberships: true,
+          subscriptions: {
+            where: {
+              isActive: true,
+              status: 'APPROVED',
+            },
+            include: { plan: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      sponsoredList = this.shuffleArray(sponsoredGroups);
+      this.sponsoredCache.set(cacheKey, {
+        timestamp: nowTime,
+        groups: sponsoredList
+      });
+    }
+
+    // Buscar grupos gratuitos (não patrocinados)
+    const now = new Date();
+    const freeList = await this.prisma.group.findMany({
       where: {
-        status: 'APPROVED',
-        ...(categoryId && { categoryId }),
+        ...baseWhere,
+        NOT: {
+          subscriptions: {
+            some: {
+              isActive: true,
+              status: 'APPROVED',
+              expiresAt: { gt: now }
+            }
+          }
+        }
       },
       include: {
         createdBy: { select: { id: true, name: true, email: true } },
         category: true,
         memberships: true,
       },
-      skip,
-      take: limit,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'desc' }
     });
+
+    const { groups, total } = mergeGroupsByFeatureStatus(sponsoredList, freeList, limit, page);
+
+    return {
+      data: groups,
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit),
+    };
+  }
+
+  private shuffleArray(array: any[]) {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
   }
 
   async findMyGroups(userId: string, page = 1, limit = 10) {
@@ -153,7 +235,7 @@ export class GroupsService {
   async findAll(status?: string, page = 1, limit = 10) {
     const skip = (page - 1) * limit;
     const where: any = {};
-    if (status && ['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
+    if (status && ['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED'].includes(status)) {
       where.status = status;
     }
     return this.prisma.group.findMany({
@@ -270,8 +352,8 @@ export class GroupsService {
     };
   }
 
-  async deleteGroup(groupId: string, adminId: string) {
-    const group = await this.prisma.group.findUnique({ 
+  async deleteGroup(groupId: string, adminId?: string) {
+    const group = await this.prisma.group.findUnique({
       where: { id: groupId },
       include: { createdBy: { select: { email: true, name: true } } },
     });
@@ -311,6 +393,47 @@ export class GroupsService {
       message: `Grupo "${group.name}" foi deletado com sucesso`,
       deletedGroup,
     };
+  }
+
+  async updateGroup(groupId: string, data: any) {
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+    });
+
+    if (!group) {
+      throw new NotFoundException('Grupo não encontrado');
+    }
+
+    // Se status for alterado para APPROVED, resetar para PENDING para reavaliação
+    if (data.status === 'APPROVED' && group.status !== 'APPROVED') {
+      data.status = 'PENDING';
+      data.reviewedById = null;
+      data.reviewedAt = null;
+    }
+
+    // Map title to name if title is provided (DTO uses title, DB uses name)
+    if (data.title !== undefined) {
+      data.name = data.title;
+      delete data.title;
+    }
+
+    // Handle category - if category string is provided, find or create it
+    if (data.category !== undefined) {
+      const category = await this.categoryService.findOrCreate(data.category);
+      data.categoryId = category?.id || null;
+      delete data.category;
+    }
+
+    const updatedGroup = await this.prisma.group.update({
+      where: { id: groupId },
+      data,
+      include: {
+        createdBy: { select: { id: true, name: true, email: true } },
+        category: true,
+      },
+    });
+
+    return updatedGroup;
   }
 }
 

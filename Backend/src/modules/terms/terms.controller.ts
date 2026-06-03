@@ -36,7 +36,7 @@ export class TermsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Check if user needs to accept terms' })
   checkStatus(@CurrentUser() user: any) {
-    return this.termsService.checkTermsStatus(user.sub);
+    return this.termsService.checkTermsStatus(user.id);
   }
 
   @Post('accept')
@@ -45,6 +45,6 @@ export class TermsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Accept terms of use and payment conditions' })
   acceptTerms(@CurrentUser() user: any, @Body() dto: AcceptTermsDto) {
-    return this.termsService.acceptTerms(user.sub, dto);
+    return this.termsService.acceptTerms(user.id, dto);
   }
 }

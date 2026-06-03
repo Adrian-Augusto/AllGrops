@@ -16,7 +16,6 @@ export class AdminGuard implements CanActivate {
     if (!user.role) {
       console.error('❌ AdminGuard: Campo "role" não encontrado', {
         user_id: user.id,
-        user_email: user.email,
         user_keys: Object.keys(user),
       });
       throw new ForbiddenException('Role não encontrado no token. Faça login novamente.');
@@ -28,7 +27,6 @@ export class AdminGuard implements CanActivate {
     if (!isAdmin) {
       console.error('❌ AdminGuard: Acesso negado', {
         user_id: user.id,
-        user_email: user.email,
         user_role: user.role,
         required_role: 'ADMIN',
       });
@@ -38,7 +36,6 @@ export class AdminGuard implements CanActivate {
     // 4. Log de sucesso
     console.log('✅ AdminGuard: Acesso concedido', {
       user_id: user.id,
-      user_email: user.email,
       user_role: user.role,
     });
 

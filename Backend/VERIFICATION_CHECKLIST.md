@@ -44,7 +44,7 @@ npx ts-node test-auth.ts
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "admin@example.com",
+    "email": "$ADMIN_EMAIL",
     "password": "senha-admin"
   }'
 ```
@@ -94,7 +94,7 @@ Resultado esperado: **HTTP 200** com dados de estatísticas
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "user@example.com",
+    "email": "$USER_EMAIL",
     "password": "senha-user"
   }'
 
@@ -150,7 +150,7 @@ Resultado esperado: **HTTP 403** com mensagem "Admin access required"
 **Debug:**
 ```bash
 # 1. Verificar usuário no banco
-SELECT id, email, role FROM "User" WHERE email = 'admin@example.com';
+SELECT id, email, role FROM "User" WHERE email = '$ADMIN_EMAIL';
 
 # Resultado esperado:
 # | id | email | role |
@@ -180,7 +180,7 @@ curl -X POST http://localhost:3000/auth/logout
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "admin@example.com",
+    "email": "$ADMIN_EMAIL",
     "password": "senha-admin"
   }'
 

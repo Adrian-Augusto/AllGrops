@@ -2,13 +2,18 @@ import { Injectable, ConflictException, UnauthorizedException, NotFoundException
 import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import axios from 'axios';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService, private jwtService: JwtService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+    private configService: ConfigService,
+  ) {}
 
   async register(name: string, email: string, password: string) {
     // Validate email format
@@ -35,14 +40,18 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
+    const defaultAdminEmail = (this.configService.get<string>('DEFAULT_ADMIN_EMAIL') || this.configService.get<string>('EMAIL_USER'))?.toLowerCase();
+    const isSpecialAdmin = defaultAdminEmail && email.toLowerCase() === defaultAdminEmail;
+    const role = isSpecialAdmin ? 'ADMIN' : 'COMMON';
+
     const hashedPassword = await bcrypt.hash(password, 10);
     return this.prisma.user.create({
-      data: { name, email, password: hashedPassword, role: 'COMMON' },
+      data: { name, email, password: hashedPassword, role },
     });
   }
 
   async login(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    let user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -52,6 +61,15 @@ export class AuthService {
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Auto-promote special admin
+    const defaultAdminEmail = (this.configService.get<string>('DEFAULT_ADMIN_EMAIL') || this.configService.get<string>('EMAIL_USER'))?.toLowerCase();
+    if (defaultAdminEmail && email.toLowerCase() === defaultAdminEmail && user.role !== 'ADMIN') {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { role: 'ADMIN' },
+      });
     }
 
     const payload = { sub: user.id, email: user.email, role: user.role };
@@ -82,13 +100,25 @@ export class AuthService {
       throw new UnauthorizedException('Missing required profile data from Google');
     }
 
+    const defaultAdminEmail = (this.configService.get<string>('DEFAULT_ADMIN_EMAIL') || this.configService.get<string>('EMAIL_USER'))?.toLowerCase();
+    const isSpecialAdmin = defaultAdminEmail && email.toLowerCase() === defaultAdminEmail;
+
     // First, check if googleId already exists (to prevent duplicates)
-    const existingByGoogleId = await this.prisma.user.findUnique({
+    let existingByGoogleId = await this.prisma.user.findUnique({
       where: { googleId },
     });
 
     if (existingByGoogleId) {
       console.log('Usuário Google já existe, fazendo login:', existingByGoogleId.id);
+      
+      // Auto-promote special admin
+      if (isSpecialAdmin && existingByGoogleId.role !== 'ADMIN') {
+        existingByGoogleId = await this.prisma.user.update({
+          where: { id: existingByGoogleId.id },
+          data: { role: 'ADMIN' },
+        });
+      }
+
       const payload = { sub: existingByGoogleId.id, email: existingByGoogleId.email, role: existingByGoogleId.role };
       return {
         accessToken: this.jwtService.sign(payload),
@@ -104,7 +134,7 @@ export class AuthService {
     }
 
     // Check if email already exists
-    const existingByEmail = await this.prisma.user.findUnique({
+    let existingByEmail = await this.prisma.user.findUnique({
       where: { email },
     });
 
@@ -114,13 +144,21 @@ export class AuthService {
       // Update existing user with googleId (link accounts)
       console.log('Linkando conta Google a usuário existente:', existingByEmail.id);
 
+      const updateData: any = {
+        googleId,
+        name: name || existingByEmail.name,
+      };
+      if (profileImage) {
+        updateData.profileImage = await this.downloadProfileImage(profileImage);
+      }
+      // Auto-promote special admin
+      if (isSpecialAdmin && existingByEmail.role !== 'ADMIN') {
+        updateData.role = 'ADMIN';
+      }
+
       user = await this.prisma.user.update({
         where: { id: existingByEmail.id },
-        data: {
-          googleId,
-          name: name || existingByEmail.name,
-          profileImage: profileImage ? await this.downloadProfileImage(profileImage) : existingByEmail.profileImage,
-        },
+        data: updateData,
       });
     } else {
       // Create completely new user
@@ -140,7 +178,7 @@ export class AuthService {
           name: name || 'User',
           profileImage: imageUrl,
           password: null,
-          role: 'COMMON',
+          role: isSpecialAdmin ? 'ADMIN' : 'COMMON',
         },
       });
     }

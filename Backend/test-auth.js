@@ -71,7 +71,7 @@ async function runTests() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                email: 'admin@example.com',
+                email: process.env.TEST_ADMIN_EMAIL || 'admin@example.com',
                 password: 'senha-admin',
             }),
         });
@@ -122,7 +122,7 @@ async function runTests() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                email: 'user@example.com',
+                email: process.env.TEST_USER_EMAIL || 'user@example.com',
                 password: 'senha-user',
             }),
         });

@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -9,31 +9,8 @@ export class FeaturedGroupsService implements OnModuleInit {
   constructor(private prisma: PrismaService) {}
 
   onModuleInit() {
-    // Iniciar scheduler de rotação automática (a cada 3 horas = 10800000ms)
-    this.startAutomaticRotation();
-  }
-
-  /**
-   * Inicia o scheduler automático que roda a cada 3 horas
-   */
-  private startAutomaticRotation() {
-    const ROTATION_INTERVAL = 3 * 60 * 60 * 1000; // 3 horas em milissegundos
-
-    this.logger.log('⏰ Iniciando scheduler de destaque (a cada 3 horas)');
-
-    // Executar logo na inicialização
-    this.rotateFeaturedGroups().catch((error: unknown) => {
-      const msg = error instanceof Error ? error.message : String(error);
-      this.logger.error(`❌ Erro na rotação inicial: ${msg}`);
-    });
-
-    // Depois, repetir a cada 3 horas
-    this.rotationInterval = setInterval(() => {
-      this.logger.log('⏰ Executando rotação automática de destaque (a cada 3h)');
-      this.rotateFeaturedGroups().catch((error) => {
-        this.logger.error(`❌ Erro na rotação automática: ${error.message}`);
-      });
-    }, ROTATION_INTERVAL);
+    // Scheduler automático desabilitado - agora é manual
+    this.logger.log('⏰ Scheduler de destaque desabilitado - modo manual ativado');
   }
 
   /**
@@ -48,18 +25,22 @@ export class FeaturedGroupsService implements OnModuleInit {
     try {
       this.logger.log('🔄 Iniciando rotação de grupos destaque...');
 
-      // 1. Buscar todos os grupos com planos ativos (subscriptions APPROVED)
+      // 1. Buscar todos os grupos ativos e aprovados com planos ativos (subscriptions APPROVED)
+      const now = new Date();
       const groupsWithActivePlans = await this.prisma.group.findMany({
         where: {
+          status: 'APPROVED',
           subscriptions: {
             some: {
+              isActive: true,
               status: 'APPROVED',
+              expiresAt: { gt: now }
             },
           },
         },
         include: {
           subscriptions: {
-            where: { status: 'APPROVED' },
+            where: { isActive: true, status: 'APPROVED', expiresAt: { gt: now } },
             include: { plan: true },
           },
           _count: { select: { memberships: true } },
@@ -134,6 +115,125 @@ export class FeaturedGroupsService implements OnModuleInit {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /**
+   * Turbina (destaca) manualmente um grupo específico
+   * Valida se o usuário tem plano ativo e não excedeu o limite
+   */
+  async featureGroupManually(userId: string, groupId: string) {
+    // Verificar se o grupo existe e pertence ao usuário (IDOR protection)
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      select: { id: true, name: true, createdById: true, status: true },
+    });
+
+    if (!group) {
+      throw new BadRequestException('Grupo não encontrado');
+    }
+
+    if (group.createdById !== userId) {
+      this.logger.warn(`Acesso negado: usuário ${userId} tentou turbinar grupo ${groupId} de outro dono`);
+      throw new BadRequestException('Acesso negado');
+    }
+
+    if (group.status !== 'APPROVED') {
+      throw new BadRequestException('Apenas grupos aprovados e ativos podem ser destacados/turbinados');
+    }
+
+    // Verificar se o usuário tem plano ativo (qualquer subscription APPROVED e isActive)
+    const activeSubscription = await this.prisma.subscription.findFirst({
+      where: {
+        userId,
+        status: 'APPROVED',
+        isActive: true,
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } },
+        ],
+      },
+      include: { plan: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!activeSubscription) {
+      throw new BadRequestException('Plano ativo necessário');
+    }
+
+    // Verificar limite de grupos turbinados do plano
+    const plan = activeSubscription.plan;
+    const maxSponsoredGroups = plan.maxSponsoredGroups || 0;
+
+    if (maxSponsoredGroups === 0) {
+      throw new BadRequestException('Plano não permite turbinar grupos');
+    }
+
+    // Usar transação para evitar race condition
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Contar quantos grupos do usuário já estão em destaque
+      const userFeaturedCount = await tx.group.count({
+        where: {
+          createdById: userId,
+          isFeatured: true,
+        },
+      });
+
+      if (userFeaturedCount >= maxSponsoredGroups) {
+        throw new BadRequestException('Limite de grupos turbinados atingido');
+      }
+
+      // Turbinar o grupo
+      const updatedGroup = await tx.group.update({
+        where: { id: groupId },
+        data: { isFeatured: true },
+        select: { id: true, name: true, isFeatured: true },
+      });
+
+      return { updatedGroup, userFeaturedCount };
+    });
+
+    this.logger.log(`Grupo turbinado: ${groupId}`);
+
+    return {
+      message: 'Grupo turbinado com sucesso',
+      group: result.updatedGroup,
+      remainingSlots: maxSponsoredGroups - result.userFeaturedCount - 1,
+      planName: plan.name,
+      maxSponsoredGroups,
+    };
+  }
+
+  /**
+   * Remove o destaque de um grupo
+   */
+  async unfeatureGroupManually(userId: string, groupId: string) {
+    // Verificar se o grupo existe e pertence ao usuário (IDOR protection)
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      select: { id: true, createdById: true },
+    });
+
+    if (!group) {
+      throw new BadRequestException('Grupo não encontrado');
+    }
+
+    if (group.createdById !== userId) {
+      this.logger.warn(`Acesso negado: usuário ${userId} tentou remover destaque de grupo ${groupId} de outro dono`);
+      throw new BadRequestException('Acesso negado');
+    }
+
+    const updatedGroup = await this.prisma.group.update({
+      where: { id: groupId },
+      data: { isFeatured: false },
+      select: { id: true, isFeatured: true },
+    });
+
+    this.logger.log(`Destaque removido: ${groupId}`);
+
+    return {
+      message: 'Destaque removido com sucesso',
+      group: updatedGroup,
+    };
   }
 
   /**

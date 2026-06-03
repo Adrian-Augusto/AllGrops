@@ -45,18 +45,32 @@ export class SubscriptionsService {
     const parts = externalReference.split(':');
     const subscriptionId = parts[2]; // Last part is always subscriptionId
 
+    // Fetch subscription to get planId for expiration calculation
+    const existingSubscription = await this.prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: { plan: true },
+    });
+
+    if (!existingSubscription) {
+      throw new NotFoundException('Subscription not found for reference');
+    }
+
+    // Calculate expiresAt if APPROVED
+    let expiresAt: Date | null = null;
+    if (status === 'APPROVED' && existingSubscription.plan) {
+      const now = new Date();
+      expiresAt = new Date(now.getTime() + existingSubscription.plan.durationDays * 24 * 60 * 60 * 1000);
+    }
+
     const subscription = await this.prisma.subscription.update({
       where: { id: subscriptionId },
       data: {
         status,
         paymentId,
         isActive: status === 'APPROVED',
+        expiresAt,
       },
     });
-
-    if (!subscription) {
-      throw new NotFoundException('Subscription not found for reference');
-    }
 
     return subscription;
   }
