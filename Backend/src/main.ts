@@ -11,6 +11,7 @@ import * as express from 'express';
 import * as path from 'path';
 import { ImageProxyInterceptor } from './modules/upload/image-proxy.interceptor';
 import { PrismaService } from './prisma/prisma.service';
+import { RequestLoggingInterceptor } from './common/interceptors/request-logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -64,6 +65,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ transform: true, forbidNonWhitelisted: false }));
   app.useGlobalInterceptors(new ImageProxyInterceptor());
+  app.useGlobalInterceptors(new RequestLoggingInterceptor(app.get(PrismaService)));
   app.setGlobalPrefix('api/v1');
 
   // ─── CORS ───────────────────────────────────────────────────────────────────
