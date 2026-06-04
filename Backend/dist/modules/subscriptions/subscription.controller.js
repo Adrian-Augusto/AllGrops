@@ -82,6 +82,7 @@ __decorate([
         summary: 'Subscrições de um grupo',
         description: 'Retorna todas as subscrições de um grupo específico',
     }),
+    __param(0, (0, common_1.Param)('groupId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)

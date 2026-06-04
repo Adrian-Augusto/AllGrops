@@ -31,10 +31,10 @@ let TermsController = class TermsController {
         return this.termsService.getTermsContent();
     }
     checkStatus(user) {
-        return this.termsService.checkTermsStatus(user.sub);
+        return this.termsService.checkTermsStatus(user.id);
     }
     acceptTerms(user, dto) {
-        return this.termsService.acceptTerms(user.sub, dto);
+        return this.termsService.acceptTerms(user.id, dto);
     }
 };
 exports.TermsController = TermsController;

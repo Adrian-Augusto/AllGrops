@@ -224,7 +224,7 @@ let GroupsService = GroupsService_1 = class GroupsService {
     async findAll(status, page = 1, limit = 10) {
         const skip = (page - 1) * limit;
         const where = {};
-        if (status && ['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
+        if (status && ['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED'].includes(status)) {
             where.status = status;
         }
         return this.prisma.group.findMany({
@@ -347,6 +347,40 @@ let GroupsService = GroupsService_1 = class GroupsService {
             message: `Grupo "${group.name}" foi deletado com sucesso`,
             deletedGroup,
         };
+    }
+    async updateGroup(groupId, data) {
+        const group = await this.prisma.group.findUnique({
+            where: { id: groupId },
+        });
+        if (!group) {
+            throw new common_1.NotFoundException('Grupo não encontrado');
+        }
+        // Se status for alterado para APPROVED, resetar para PENDING para reavaliação
+        if (data.status === 'APPROVED' && group.status !== 'APPROVED') {
+            data.status = 'PENDING';
+            data.reviewedById = null;
+            data.reviewedAt = null;
+        }
+        // Map title to name if title is provided (DTO uses title, DB uses name)
+        if (data.title !== undefined) {
+            data.name = data.title;
+            delete data.title;
+        }
+        // Handle category - if category string is provided, find or create it
+        if (data.category !== undefined) {
+            const category = await this.categoryService.findOrCreate(data.category);
+            data.categoryId = category?.id || null;
+            delete data.category;
+        }
+        const updatedGroup = await this.prisma.group.update({
+            where: { id: groupId },
+            data,
+            include: {
+                createdBy: { select: { id: true, name: true, email: true } },
+                category: true,
+            },
+        });
+        return updatedGroup;
     }
 };
 exports.GroupsService = GroupsService;

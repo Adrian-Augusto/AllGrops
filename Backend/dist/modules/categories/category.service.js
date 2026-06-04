@@ -31,7 +31,15 @@ let CategoriesService = class CategoriesService {
     }
     async create(name) {
         const slug = this.generateSlug(name);
-        return this.prisma.category.create({ data: { name, slug } });
+        try {
+            return await this.prisma.category.create({ data: { name, slug } });
+        }
+        catch (error) {
+            if (error.code === 'P2002') {
+                throw new common_1.ConflictException('Category with this name or slug already exists');
+            }
+            throw error;
+        }
     }
     async findOne(id) {
         const category = await this.prisma.category.findUnique({

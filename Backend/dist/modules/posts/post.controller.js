@@ -25,11 +25,11 @@ let PostsController = class PostsController {
     constructor(postsService) {
         this.postsService = postsService;
     }
-    async createPost(groupId, userId, body, file) {
+    async createPost(groupId, user, body, file) {
         if (!body.title || !body.description) {
             throw new common_1.BadRequestException('title and description are required');
         }
-        return this.postsService.createPost(groupId, userId, {
+        return this.postsService.createPost(groupId, user.id, {
             title: body.title,
             description: body.description,
             link: body.link,
@@ -43,8 +43,8 @@ let PostsController = class PostsController {
     async getPost(postId) {
         return this.postsService.getPost(postId);
     }
-    async deletePost(groupId, postId, userId) {
-        return this.postsService.deletePost(postId, groupId, userId);
+    async deletePost(groupId, postId, user) {
+        return this.postsService.deletePost(postId, groupId, user.id);
     }
 };
 exports.PostsController = PostsController;
@@ -76,7 +76,7 @@ __decorate([
     __param(2, (0, common_1.Body)()),
     __param(3, (0, common_1.UploadedFile)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, Object, Object]),
+    __metadata("design:paramtypes", [String, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], PostsController.prototype, "createPost", null);
 __decorate([
@@ -101,7 +101,7 @@ __decorate([
     __param(1, (0, common_1.Param)('postId')),
     __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", Promise)
 ], PostsController.prototype, "deletePost", null);
 exports.PostsController = PostsController = __decorate([

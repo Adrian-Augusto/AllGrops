@@ -11,9 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PaymentsController = void 0;
 const common_1 = require("@nestjs/common");
@@ -22,26 +19,6 @@ const payment_service_1 = require("./payment.service");
 const create_payment_dto_1 = require("./dto/create-payment.dto");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const current_user_decorator_1 = require("../auth/current-user.decorator");
-const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
-// Rate limiters
-const createPaymentLimiter = (0, express_rate_limit_1.default)({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // 10 requests per hour
-    message: 'Too many payment requests, please try again later',
-    standardHeaders: true,
-    legacyHeaders: false,
-    skip: (req) => {
-        // Skip rate limiting for non-POST requests
-        return req.method !== 'POST';
-    },
-});
-const webhookLimiter = (0, express_rate_limit_1.default)({
-    windowMs: 60 * 1000, // 1 minute
-    max: 100, // 100 requests per minute
-    message: 'Too many webhook requests',
-    standardHeaders: true,
-    legacyHeaders: false,
-});
 let PaymentsController = class PaymentsController {
     paymentsService;
     constructor(paymentsService) {

@@ -8,12 +8,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var AdminService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
-let AdminService = class AdminService {
+let AdminService = AdminService_1 = class AdminService {
     prisma;
+    logger = new common_1.Logger(AdminService_1.name);
     constructor(prisma) {
         this.prisma = prisma;
     }
@@ -42,11 +44,12 @@ let AdminService = class AdminService {
     async getGroups(status) {
         const where = {};
         if (status) {
-            const validStatuses = ['PENDING', 'APPROVED', 'REJECTED'];
-            if (!validStatuses.includes(status.toUpperCase())) {
+            const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED'];
+            const normalizedStatus = status.toUpperCase();
+            if (!validStatuses.includes(normalizedStatus)) {
                 throw new common_1.BadRequestException(`Invalid status. Valid options: ${validStatuses.join(', ')}`);
             }
-            where.status = status.toUpperCase();
+            where.status = normalizedStatus;
         }
         const groups = await this.prisma.group.findMany({
             where,
@@ -62,6 +65,9 @@ let AdminService = class AdminService {
         };
     }
     async approveGroup(groupId) {
+        if (!groupId) {
+            throw new common_1.BadRequestException('Group ID is required');
+        }
         const group = await this.prisma.group.findUnique({
             where: { id: groupId },
         });
@@ -80,7 +86,10 @@ let AdminService = class AdminService {
             },
         });
     }
-    async rejectGroup(groupId) {
+    async rejectGroup(groupId, rejectionReason) {
+        if (!groupId) {
+            throw new common_1.BadRequestException('Group ID is required');
+        }
         const group = await this.prisma.group.findUnique({
             where: { id: groupId },
         });
@@ -92,7 +101,10 @@ let AdminService = class AdminService {
         }
         return this.prisma.group.update({
             where: { id: groupId },
-            data: { status: 'REJECTED' },
+            data: {
+                status: 'REJECTED',
+                rejectionReason: rejectionReason || 'Rejected by admin',
+            },
             include: {
                 createdBy: { select: { id: true, name: true, email: true } },
                 category: true,
@@ -131,7 +143,7 @@ let AdminService = class AdminService {
     }
 };
 exports.AdminService = AdminService;
-exports.AdminService = AdminService = __decorate([
+exports.AdminService = AdminService = AdminService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], AdminService);

@@ -8,13 +8,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var RolesGuard_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RolesGuard = exports.Roles = void 0;
 const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
 exports.Roles = core_1.Reflector.createDecorator();
-let RolesGuard = class RolesGuard {
+let RolesGuard = RolesGuard_1 = class RolesGuard {
     reflector;
+    logger = new common_1.Logger(RolesGuard_1.name);
+    isProduction = process.env.NODE_ENV === 'production';
     constructor(reflector) {
         this.reflector = reflector;
     }
@@ -29,13 +32,16 @@ let RolesGuard = class RolesGuard {
             throw new common_1.ForbiddenException('User not authenticated');
         }
         if (!requiredRoles.includes(user.role)) {
+            if (!this.isProduction) {
+                this.logger.warn(`Access denied - required roles: [${requiredRoles.join(', ')}], user role: ${user.role}`);
+            }
             throw new common_1.ForbiddenException(`Apenas usuários com role [${requiredRoles.join(', ')}] podem acessar`);
         }
         return true;
     }
 };
 exports.RolesGuard = RolesGuard;
-exports.RolesGuard = RolesGuard = __decorate([
+exports.RolesGuard = RolesGuard = RolesGuard_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [core_1.Reflector])
 ], RolesGuard);

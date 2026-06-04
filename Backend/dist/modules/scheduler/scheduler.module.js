@@ -11,12 +11,13 @@ const common_1 = require("@nestjs/common");
 const schedule_1 = require("@nestjs/schedule");
 const scheduler_service_1 = require("./scheduler.service");
 const prisma_module_1 = require("../../prisma/prisma.module");
+const mail_module_1 = require("../mail/mail.module");
 let SchedulerModule = class SchedulerModule {
 };
 exports.SchedulerModule = SchedulerModule;
 exports.SchedulerModule = SchedulerModule = __decorate([
     (0, common_1.Module)({
-        imports: [schedule_1.ScheduleModule.forRoot(), prisma_module_1.PrismaModule],
+        imports: [schedule_1.ScheduleModule.forRoot(), prisma_module_1.PrismaModule, mail_module_1.MailModule],
         providers: [scheduler_service_1.SchedulerService],
     })
 ], SchedulerModule);

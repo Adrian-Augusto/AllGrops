@@ -31,18 +31,22 @@ let FeaturedGroupsService = FeaturedGroupsService_1 = class FeaturedGroupsServic
     async rotateFeaturedGroups() {
         try {
             this.logger.log('🔄 Iniciando rotação de grupos destaque...');
-            // 1. Buscar todos os grupos com planos ativos (subscriptions APPROVED)
+            // 1. Buscar todos os grupos ativos e aprovados com planos ativos (subscriptions APPROVED)
+            const now = new Date();
             const groupsWithActivePlans = await this.prisma.group.findMany({
                 where: {
+                    status: 'APPROVED',
                     subscriptions: {
                         some: {
+                            isActive: true,
                             status: 'APPROVED',
+                            expiresAt: { gt: now }
                         },
                     },
                 },
                 include: {
                     subscriptions: {
-                        where: { status: 'APPROVED' },
+                        where: { isActive: true, status: 'APPROVED', expiresAt: { gt: now } },
                         include: { plan: true },
                     },
                     _count: { select: { memberships: true } },
@@ -117,7 +121,7 @@ let FeaturedGroupsService = FeaturedGroupsService_1 = class FeaturedGroupsServic
         // Verificar se o grupo existe e pertence ao usuário (IDOR protection)
         const group = await this.prisma.group.findUnique({
             where: { id: groupId },
-            select: { id: true, name: true, createdById: true },
+            select: { id: true, name: true, createdById: true, status: true },
         });
         if (!group) {
             throw new common_1.BadRequestException('Grupo não encontrado');
@@ -125,6 +129,9 @@ let FeaturedGroupsService = FeaturedGroupsService_1 = class FeaturedGroupsServic
         if (group.createdById !== userId) {
             this.logger.warn(`Acesso negado: usuário ${userId} tentou turbinar grupo ${groupId} de outro dono`);
             throw new common_1.BadRequestException('Acesso negado');
+        }
+        if (group.status !== 'APPROVED') {
+            throw new common_1.BadRequestException('Apenas grupos aprovados e ativos podem ser destacados/turbinados');
         }
         // Verificar se o usuário tem plano ativo (qualquer subscription APPROVED e isActive)
         const activeSubscription = await this.prisma.subscription.findFirst({

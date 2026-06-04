@@ -90,13 +90,6 @@ export class AuthService {
       user = await this.prisma.user.update({
         where: { id: user.id },
         data: { role: 'ADMIN' },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          termsAccepted: true,
-        },
       });
     }
 

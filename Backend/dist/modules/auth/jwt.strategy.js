@@ -19,7 +19,21 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
     prisma;
     constructor(configService, prisma) {
         super({
-            jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
+            jwtFromRequest: passport_jwt_1.ExtractJwt.fromExtractors([
+                // 1. Try Authorization header first (Bearer token) - most secure
+                (request) => {
+                    const token = passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken()(request);
+                    if (token) {
+                        return token;
+                    }
+                    // 2. Fallback to HttpOnly cookie for browser-based clients
+                    // This is safer than URL-based tokens and prevents token exposure in logs
+                    if (request?.cookies?.accessToken) {
+                        return request.cookies.accessToken;
+                    }
+                    return null;
+                },
+            ]),
             ignoreExpiration: false,
             secretOrKey: configService.get('JWT_SECRET') || 'change-me',
         });

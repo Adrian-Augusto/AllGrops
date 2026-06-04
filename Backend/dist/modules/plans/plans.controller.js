@@ -56,16 +56,16 @@ let PlansController = class PlansController {
         return this.plansService.getActivePlan(userId);
     }
     async getUserPlans(user) {
-        return this.plansService.getUserPlans(user.sub);
+        return this.plansService.getUserPlans(user.id);
     }
     async subscribeToPlan(dto, user) {
         if (!dto.groupId) {
             throw new common_1.BadRequestException('Group ID is required');
         }
-        return this.plansService.subscribeToPlan(user.sub, dto.groupId, dto.planId);
+        return this.plansService.subscribeToPlan(user.id, dto.groupId, dto.planId);
     }
     async cancelPlan(user) {
-        return this.plansService.cancelUserSubscription(user.sub);
+        return this.plansService.cancelUserSubscription(user.id);
     }
 };
 exports.PlansController = PlansController;

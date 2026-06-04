@@ -14,11 +14,14 @@ exports.SchedulerService = void 0;
 const common_1 = require("@nestjs/common");
 const schedule_1 = require("@nestjs/schedule");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const mail_service_1 = require("../mail/mail.service");
 let SchedulerService = SchedulerService_1 = class SchedulerService {
     prisma;
+    mailService;
     logger = new common_1.Logger(SchedulerService_1.name);
-    constructor(prisma) {
+    constructor(prisma, mailService) {
         this.prisma = prisma;
+        this.mailService = mailService;
     }
     async handleExpiredSubscriptions() {
         this.logger.log('Checking for expired subscriptions...');
@@ -44,7 +47,7 @@ let SchedulerService = SchedulerService_1 = class SchedulerService {
                 return;
             }
             this.logger.log(`Found ${expiredSubscriptions.length} expired subscriptions. Cancelling...`);
-            // Cancel each expired subscription
+            // Cancel each expired subscription and remove featured status
             for (const subscription of expiredSubscriptions) {
                 await this.prisma.subscription.update({
                     where: { id: subscription.id },
@@ -54,6 +57,13 @@ let SchedulerService = SchedulerService_1 = class SchedulerService {
                         expiresAt: now,
                     },
                 });
+                if (subscription.groupId) {
+                    await this.prisma.group.update({
+                        where: { id: subscription.groupId },
+                        data: { isFeatured: false },
+                    });
+                    this.logger.log(`Removed feature status for group ${subscription.groupId} due to expired subscription ${subscription.id}`);
+                }
                 this.logger.log(`Cancelled subscription ${subscription.id} for user ${subscription.user.email} (group: ${subscription.group?.name || 'N/A'})`);
             }
             this.logger.log(`Successfully cancelled ${expiredSubscriptions.length} expired subscriptions.`);
@@ -81,7 +91,7 @@ let SchedulerService = SchedulerService_1 = class SchedulerService {
                 return;
             }
             this.logger.log(`Found ${expiredSubscriptions.length} expired subscriptions in hourly check. Cancelling...`);
-            // Cancel each expired subscription
+            // Cancel each expired subscription and remove featured status
             for (const subscription of expiredSubscriptions) {
                 await this.prisma.subscription.update({
                     where: { id: subscription.id },
@@ -91,11 +101,74 @@ let SchedulerService = SchedulerService_1 = class SchedulerService {
                         expiresAt: now,
                     },
                 });
+                if (subscription.groupId) {
+                    await this.prisma.group.update({
+                        where: { id: subscription.groupId },
+                        data: { isFeatured: false },
+                    });
+                    this.logger.log(`Removed feature status for group ${subscription.groupId} due to expired subscription ${subscription.id}`);
+                }
             }
             this.logger.log(`Successfully cancelled ${expiredSubscriptions.length} expired subscriptions in hourly check.`);
         }
         catch (error) {
             this.logger.error('Error cancelling expired subscriptions in hourly check:', error);
+        }
+    }
+    async handleExpiredGroupsHourly() {
+        this.logger.log('Hourly check for expired groups...');
+        const thresholdDate = new Date();
+        thresholdDate.setDate(thresholdDate.getDate() - 30); // 30 dias atrás
+        try {
+            // Find all approved groups older than 30 days based on reviewedAt (fallback to createdAt)
+            const expiredGroups = await this.prisma.group.findMany({
+                where: {
+                    status: 'APPROVED',
+                    OR: [
+                        {
+                            reviewedAt: {
+                                lt: thresholdDate,
+                            },
+                        },
+                        {
+                            reviewedAt: null,
+                            createdAt: {
+                                lt: thresholdDate,
+                            },
+                        },
+                    ],
+                },
+                include: {
+                    createdBy: { select: { id: true, name: true, email: true } },
+                },
+            });
+            if (expiredGroups.length === 0) {
+                this.logger.log('No expired groups found in hourly check.');
+                return;
+            }
+            this.logger.log(`Found ${expiredGroups.length} expired groups. Expiring...`);
+            // Expire each group and notify owner
+            for (const group of expiredGroups) {
+                await this.prisma.group.update({
+                    where: { id: group.id },
+                    data: {
+                        status: 'EXPIRED',
+                    },
+                });
+                this.logger.log(`Group ${group.id} ("${group.name}") has expired.`);
+                // Notify user via email
+                if (group.createdBy?.email) {
+                    // Trigger email notification in background
+                    this.mailService.sendGroupExpiredEmail(group.createdBy.email, group.name).catch((err) => {
+                        const msg = err instanceof Error ? err.message : String(err);
+                        this.logger.error(`Failed to send expiration email for group ${group.id}: ${msg}`);
+                    });
+                }
+            }
+            this.logger.log(`Successfully expired ${expiredGroups.length} groups in hourly check.`);
+        }
+        catch (error) {
+            this.logger.error('Error handling expired groups:', error);
         }
     }
 };
@@ -112,7 +185,14 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], SchedulerService.prototype, "handleExpiredSubscriptionsHourly", null);
+__decorate([
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_HOUR),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], SchedulerService.prototype, "handleExpiredGroupsHourly", null);
 exports.SchedulerService = SchedulerService = SchedulerService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        mail_service_1.MailService])
 ], SchedulerService);
