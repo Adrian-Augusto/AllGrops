@@ -1,8 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async getStats() {
@@ -39,12 +41,14 @@ export class AdminService {
     
     if (status) {
       const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED'];
-      if (!validStatuses.includes(status.toUpperCase())) {
+      const normalizedStatus = status.toUpperCase();
+      
+      if (!validStatuses.includes(normalizedStatus)) {
         throw new BadRequestException(
           `Invalid status. Valid options: ${validStatuses.join(', ')}`,
         );
       }
-      where.status = status.toUpperCase();
+      where.status = normalizedStatus;
     }
 
     const groups = await this.prisma.group.findMany({
@@ -63,6 +67,10 @@ export class AdminService {
   }
 
   async approveGroup(groupId: string) {
+    if (!groupId) {
+      throw new BadRequestException('Group ID is required');
+    }
+
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },
     });
@@ -87,7 +95,11 @@ export class AdminService {
     });
   }
 
-  async rejectGroup(groupId: string) {
+  async rejectGroup(groupId: string, rejectionReason?: string) {
+    if (!groupId) {
+      throw new BadRequestException('Group ID is required');
+    }
+
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },
     });
@@ -104,7 +116,10 @@ export class AdminService {
 
     return this.prisma.group.update({
       where: { id: groupId },
-      data: { status: 'REJECTED' },
+      data: { 
+        status: 'REJECTED',
+        rejectionReason: rejectionReason || 'Rejected by admin',
+      },
       include: {
         createdBy: { select: { id: true, name: true, email: true } },
         category: true,

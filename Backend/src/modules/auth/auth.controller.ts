@@ -1,71 +1,99 @@
-import { Body, Controller, Post, Get, UseGuards, Req, Res, Query, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Post, Get, UseGuards, Req, Res, Query, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { GoogleAuthGuard } from './google-auth.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Response } from 'express';
+import { IsString, IsEmail, IsNotEmpty, MinLength, MaxLength, IsStrongPassword } from 'class-validator';
 
 class RegisterDto {
   @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(2, { message: 'Name must be at least 2 characters' })
+  @MaxLength(100, { message: 'Name must not exceed 100 characters' })
   name: string;
 
   @ApiProperty()
+  @IsEmail({}, { message: 'Invalid email format' })
+  @IsNotEmpty()
   email: string;
 
   @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  @MaxLength(128, { message: 'Password must not exceed 128 characters' })
+  // Note: @IsStrongPassword would require special chars, upper, lower, numbers
+  // For production, uncomment the line below for stronger passwords
+  // @IsStrongPassword()
   password: string;
 }
 
 class LoginDto {
   @ApiProperty()
+  @IsEmail({}, { message: 'Invalid email format' })
+  @IsNotEmpty()
   email: string;
 
   @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   password: string;
 }
 
 class ChangePasswordDto {
   @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   currentPassword: string;
 
   @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8, { message: 'New password must be at least 8 characters' })
+  @MaxLength(128, { message: 'Password must not exceed 128 characters' })
   newPassword: string;
 }
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {}
 
   @Post('register')
-  register(@Body() body: RegisterDto) {
+  async register(@Body() body: RegisterDto) {
+    // Body validation is handled by ValidationPipe
     return this.authService.register(body.name, body.email, body.password);
   }
 
   @Post('login')
   async login(@Body() body: LoginDto, @Res() res: Response) {
-    console.log('Login request recebido:', body);
-    
+    // Body validation is handled by ValidationPipe
     if (!body.email || !body.password) {
       return res.status(400).json({
         statusCode: 400,
-        message: 'Email e password são obrigatórios',
-        received: body,
+        message: 'Email and password are required',
       });
     }
 
     const result = await this.authService.login(body.email, body.password);
+    
+    // Set HttpOnly cookie with secure flag
     res.cookie('accessToken', result.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 3600000, // 1 hora
+      httpOnly: true, // Prevents XSS attacks
+      secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
+      sameSite: 'lax', // CSRF protection
+      maxAge: 3600000, // 1 hour
       path: '/',
     });
+    
     return res.json(result);
   }
 
@@ -82,7 +110,7 @@ export class AuthController {
     try {
       // Tratamento de erros do Google OAuth
       if (error) {
-        console.error('Google OAuth error:', error);
+        this.logger.warn(`Google OAuth error: ${error}`);
         const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
         return res.redirect(`${frontendUrl}/login?error=${error}`);
       }
@@ -94,8 +122,6 @@ export class AuthController {
       // Após o GoogleAuthGuard, o Passport já trocou o código por access_token
       // e executou a validação, deixando o usuário em req.user
       const userProfile = req.user;
-      
-      console.log('User profile recebido no callback:', userProfile);
 
       if (!userProfile) {
         throw new BadRequestException('Failed to retrieve user profile from Google');
@@ -106,10 +132,10 @@ export class AuthController {
 
       // Setar o token em cookie HttpOnly (mais seguro)
       res.cookie('accessToken', result.accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 3600000, // 1 hora
+        httpOnly: true, // Prevents XSS attacks
+        secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
+        sameSite: 'lax', // CSRF protection
+        maxAge: 3600000, // 1 hour
         path: '/',
       });
 
@@ -117,7 +143,7 @@ export class AuthController {
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
       return res.redirect(`${frontendUrl}/auth/callback`);
     } catch (error) {
-      console.error('Google OAuth callback error:', error);
+      this.logger.error('Google OAuth callback error');
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
       return res.redirect(`${frontendUrl}/login?error=auth_failed`);
     }

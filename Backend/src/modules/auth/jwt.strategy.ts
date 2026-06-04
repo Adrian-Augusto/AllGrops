@@ -13,14 +13,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
+        // 1. Try Authorization header first (Bearer token) - most secure
         (request: Request) => {
-          // Try to get token from Authorization header first
           const token = ExtractJwt.fromAuthHeaderAsBearerToken()(request);
           if (token) {
             return token;
           }
-          // Fallback to cookie
-          return request?.cookies?.accessToken;
+          // 2. Fallback to HttpOnly cookie for browser-based clients
+          // This is safer than URL-based tokens and prevents token exposure in logs
+          if (request?.cookies?.accessToken) {
+            return request.cookies.accessToken;
+          }
+          return null;
         },
       ]),
       ignoreExpiration: false,

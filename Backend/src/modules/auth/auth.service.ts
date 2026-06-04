@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
@@ -9,6 +9,9 @@ import axios from 'axios';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  private readonly isProduction = process.env.NODE_ENV === 'production';
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -21,6 +24,12 @@ export class AuthService {
       throw new BadRequestException('Invalid email format');
     }
 
+    // Validate password strength
+    if (!password || password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
+    // Check if email already exists
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
       throw new ConflictException('Email already in use');
@@ -45,9 +54,21 @@ export class AuthService {
     const role = isSpecialAdmin ? 'ADMIN' : 'COMMON';
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: { name, email, password: hashedPassword, role },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
     });
+
+    if (!this.isProduction) {
+      this.logger.log(`User registered: ${user.id}`);
+    }
+
+    return user;
   }
 
   async login(email: string, password: string) {
@@ -69,10 +90,22 @@ export class AuthService {
       user = await this.prisma.user.update({
         where: { id: user.id },
         data: { role: 'ADMIN' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          termsAccepted: true,
+        },
       });
     }
 
     const payload = { sub: user.id, email: user.email, role: user.role };
+    
+    if (!this.isProduction) {
+      this.logger.log(`User logged in: ${user.id}`);
+    }
+
     return {
       accessToken: this.jwtService.sign(payload),
       user: {
@@ -88,13 +121,6 @@ export class AuthService {
   async googleLogin(userProfile: any) {
     const { googleId, email, name, profileImage } = userProfile;
 
-    console.log('Processando Google Login:', {
-      googleId,
-      email,
-      name,
-      profileImage,
-    });
-
     // Validate required fields
     if (!googleId || !email) {
       throw new UnauthorizedException('Missing required profile data from Google');
@@ -106,16 +132,30 @@ export class AuthService {
     // First, check if googleId already exists (to prevent duplicates)
     let existingByGoogleId = await this.prisma.user.findUnique({
       where: { googleId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        profileImage: true,
+        termsAccepted: true,
+      },
     });
 
     if (existingByGoogleId) {
-      console.log('Usuário Google já existe, fazendo login:', existingByGoogleId.id);
-      
       // Auto-promote special admin
       if (isSpecialAdmin && existingByGoogleId.role !== 'ADMIN') {
         existingByGoogleId = await this.prisma.user.update({
           where: { id: existingByGoogleId.id },
           data: { role: 'ADMIN' },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            profileImage: true,
+            termsAccepted: true,
+          },
         });
       }
 
@@ -136,14 +176,20 @@ export class AuthService {
     // Check if email already exists
     let existingByEmail = await this.prisma.user.findUnique({
       where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        profileImage: true,
+        termsAccepted: true,
+      },
     });
 
     let user;
 
     if (existingByEmail) {
       // Update existing user with googleId (link accounts)
-      console.log('Linkando conta Google a usuário existente:', existingByEmail.id);
-
       const updateData: any = {
         googleId,
         name: name || existingByEmail.name,
@@ -159,17 +205,18 @@ export class AuthService {
       user = await this.prisma.user.update({
         where: { id: existingByEmail.id },
         data: updateData,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          profileImage: true,
+          termsAccepted: true,
+        },
       });
     } else {
       // Create completely new user
       const imageUrl = await this.downloadProfileImage(profileImage);
-      
-      console.log('Criando novo usuário Google:', {
-        googleId,
-        email,
-        name,
-        imageUrl,
-      });
 
       user = await this.prisma.user.create({
         data: {
@@ -180,10 +227,23 @@ export class AuthService {
           password: null,
           role: isSpecialAdmin ? 'ADMIN' : 'COMMON',
         },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          profileImage: true,
+          termsAccepted: true,
+        },
       });
     }
 
     const payload = { sub: user.id, email: user.email, role: user.role };
+    
+    if (!this.isProduction) {
+      this.logger.log(`Google user logged in: ${user.id}`);
+    }
+
     return {
       accessToken: this.jwtService.sign(payload),
       user: {
@@ -198,6 +258,18 @@ export class AuthService {
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
+
+    if (!currentPassword || !newPassword) {
+      throw new BadRequestException('Current and new passwords are required');
+    }
+
+    if (newPassword.length < 8) {
+      throw new BadRequestException('New password must be at least 8 characters');
+    }
+
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -215,20 +287,23 @@ export class AuthService {
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    return this.prisma.user.update({
+    const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: { password: hashedPassword },
       select: { id: true, email: true, name: true },
     });
+
+    if (!this.isProduction) {
+      this.logger.log(`Password changed for user: ${userId}`);
+    }
+
+    return updatedUser;
   }
 
   private async downloadProfileImage(imageUrl: string): Promise<string | null> {
     if (!imageUrl) {
-      console.log('Image URL is null or empty');
       return null;
     }
-
-    console.log('Tentando fazer download da imagem:', imageUrl);
 
     try {
       const uploadsDir = path.join(process.cwd(), 'uploads', 'profiles');
@@ -248,16 +323,15 @@ export class AuthService {
 
       await fs.writeFile(filePath, response.data);
       const savedPath = `/uploads/profiles/${fileName}`;
-      console.log('Imagem salva com sucesso:', savedPath);
+      
+      if (!this.isProduction) {
+        this.logger.log(`Profile image saved: ${savedPath}`);
+      }
+      
       return savedPath;
     } catch (error) {
-      console.error('Falha ao fazer download da imagem:', {
-        url: imageUrl,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      
+      this.logger.warn(`Failed to download profile image from Google, using fallback`);
       // Se falhar, tenta retornar a URL original do Google
-      console.log('Retornando URL original do Google como fallback');
       return imageUrl;
     }
   }
