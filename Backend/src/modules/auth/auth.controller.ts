@@ -187,7 +187,8 @@ export class AuthController {
       // Redirecionar para o frontend com o token na URL
       return res.redirect(`${targetRedirectUrl}?token=${token}`);
     } catch (error) {
-      this.logger.error('Google OAuth callback error');
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Google OAuth callback error: ${errorMsg}`, error instanceof Error ? error.stack : '');
       return res.redirect(`${fallbackUrl}/login?error=auth_failed`);
     }
   }
