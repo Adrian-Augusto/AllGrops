@@ -143,6 +143,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
   await app.listen(port, '0.0.0.0');
+  console.log("🔥 BACKEND NOVO RODANDO");
   console.log(`Application is running on: http://0.0.0.0:${port}/api/v1`);
 }
 
