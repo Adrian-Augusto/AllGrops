@@ -171,11 +171,21 @@ export class AuthController {
         }
       }
 
-      // Gera o código temporário de uso único contendo os resultados da autenticação
-      const tempCode = this.authService.generateTempCode(result);
+      // Retornar o token JWT diretamente na URL para o frontend armazenar
+      // O token será salvo em sessionStorage pelo frontend
+      const token = result.accessToken;
 
-      // Redirecionar para o frontend passando apenas o código temporário seguro
-      return res.redirect(`${targetRedirectUrl}?code=${tempCode}`);
+      // Set HttpOnly cookie (para requisições que não enviam Bearer token)
+      res.cookie('accessToken', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 3600000, // 1 hora
+        path: '/',
+      });
+
+      // Redirecionar para o frontend com o token na URL
+      return res.redirect(`${targetRedirectUrl}?token=${token}`);
     } catch (error) {
       this.logger.error('Google OAuth callback error');
       return res.redirect(`${fallbackUrl}/login?error=auth_failed`);
