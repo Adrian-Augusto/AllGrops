@@ -144,6 +144,20 @@ model Post {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model RequestLog {
+  id          String   @id @default(uuid())
+  method      String
+  path        String
+  statusCode  Int
+  userId      String?
+  userAgent   String?
+  ip          String?
+  duration    Int      // em ms
+  success     Boolean
+  errorMessage String?
+  createdAt   DateTime @default(now())
+}
+
 enum UserRole {
   ADMIN
   COMMON
