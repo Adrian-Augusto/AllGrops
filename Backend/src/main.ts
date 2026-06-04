@@ -47,27 +47,6 @@ async function bootstrap() {
     },
   }));
 
-  // Rate limiters for payment routes
-  const paymentLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // 10 requests per hour
-    message: 'Too many payment requests, please try again later',
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
-
-  const webhookLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    max: 100, // 100 requests per minute
-    message: 'Too many webhook requests',
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
-
-  // Apply rate limiters to specific routes
-  app.use('/api/v1/payments/create', paymentLimiter);
-  app.use('/api/v1/payments/webhook', webhookLimiter);
-
   // Parse cookies
   app.use(cookieParser());
 
@@ -80,7 +59,7 @@ async function bootstrap() {
   // app.useGlobalInterceptors(new RequestLoggingInterceptor(app.get(PrismaService))); // Temporarily disabled until migration is applied
   app.setGlobalPrefix('api/v1');
 
-  // ─── CORS ───────────────────────────────────────────────────────────────────
+  // ─── CORS (MUST be before rate limiters) ───────────────────────────────────
   const allowedOrigins = [
     process.env.FRONTEND_URL || 'https://front-end-flow-group.vercel.app',
     'https://front-end-flow-group.vercel.app',
@@ -123,6 +102,29 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
   // ────────────────────────────────────────────────────────────────────────────
+
+  // Rate limiters for payment routes (AFTER CORS)
+  const paymentLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10, // 10 requests per hour
+    message: 'Too many payment requests, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS', // Skip OPTIONS requests
+  });
+
+  const webhookLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 100, // 100 requests per minute
+    message: 'Too many webhook requests',
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS', // Skip OPTIONS requests
+  });
+
+  // Apply rate limiters to specific routes
+  app.use('/api/v1/payments/create', paymentLimiter);
+  app.use('/api/v1/payments/webhook', webhookLimiter);
 
   // Middleware specific to /uploads with CORS
   app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {
