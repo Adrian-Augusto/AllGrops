@@ -20,9 +20,9 @@ import { TermsAcceptedGuard } from './terms-accepted.guard';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET') || 'change-me',
-        signOptions: { expiresIn: (configService.get<string>('JWT_EXPIRES_IN') || '1h') as string },
+        signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1h' },
       }),
     }),
   ],
