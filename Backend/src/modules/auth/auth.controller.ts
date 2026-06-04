@@ -64,6 +64,7 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 3600000, // 1 hora
+      path: '/',
     });
     return res.json(result);
   }
@@ -103,9 +104,10 @@ export class AuthController {
       // Criar ou atualizar usuário no banco de dados
       const result = await this.authService.googleLogin(userProfile);
 
-      // Redirecionar para o frontend com o JWT na query string
+      // Redirecionar para o frontend com o JWT no fragment (#)
+      // SEGURANÇA: fragment nunca é enviado ao servidor, não aparece em logs nem no header Referer
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
-      const redirectUrl = `${frontendUrl}/login-success?token=${result.accessToken}`;
+      const redirectUrl = `${frontendUrl}/auth/callback#token=${result.accessToken}`;
       
       return res.redirect(redirectUrl);
     } catch (error) {
@@ -134,6 +136,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      path: '/',
     });
     return res.json({ message: 'Logged out successfully' });
   }
