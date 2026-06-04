@@ -84,33 +84,42 @@ export class TermsService {
     });
 
     console.log('[TermsService] User found:', user ? user.id : 'NOT FOUND');
+    console.log('[TermsService] User data:', user);
 
     if (!user) {
       throw new UnauthorizedException('Usuário não encontrado');
     }
 
+    console.log('[TermsService] Attempting to update user...');
+
     // Update user to mark terms as accepted
-    const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        termsAccepted: true,
-        termsVersion: CURRENT_TERMS_VERSION,
-        termsAcceptedAt: new Date(),
-      },
-    });
+    try {
+      const updatedUser = await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          termsAccepted: true,
+          termsVersion: CURRENT_TERMS_VERSION,
+          termsAcceptedAt: new Date(),
+        },
+      });
 
-    console.log('[TermsService] User updated:', updatedUser.id, 'termsAccepted:', updatedUser.termsAccepted);
+      console.log('[TermsService] User updated successfully:', updatedUser.id, 'termsAccepted:', updatedUser.termsAccepted);
+      console.log('[TermsService] Updated user data:', updatedUser);
 
-    return {
-      message: 'Termos aceitos com sucesso',
-      user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        name: updatedUser.name,
-        termsAccepted: updatedUser.termsAccepted,
-        termsVersion: updatedUser.termsVersion,
-      },
-    };
+      return {
+        message: 'Termos aceitos com sucesso',
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          name: updatedUser.name,
+          termsAccepted: updatedUser.termsAccepted,
+          termsVersion: updatedUser.termsVersion,
+        },
+      };
+    } catch (error) {
+      console.error('[TermsService] Error updating user:', error);
+      throw error;
+    }
   }
 
   /**

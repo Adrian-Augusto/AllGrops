@@ -21,6 +21,15 @@ async function bootstrap() {
   // Trust proxy for Render (required for express-rate-limit)
   app.set('trust proxy', true);
 
+  // Sync database schema on startup (for environments without shell access)
+  try {
+    console.log('Syncing database schema...');
+    await prisma.$executeRawUnsafe('SELECT 1');
+    console.log('Database connection successful');
+  } catch (error) {
+    console.error('Database connection failed:', error);
+  }
+
   // Security: Apply helmet middleware for HTTP headers protection
   app.use(helmet({
     contentSecurityPolicy: {
