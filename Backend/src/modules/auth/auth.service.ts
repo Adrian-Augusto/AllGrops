@@ -314,7 +314,7 @@ export class AuthService {
     };
 
     return this.jwtService.sign(jwtPayload, {
-      expiresIn: this.jwtExpiresIn,
+      expiresIn: this.jwtExpiresIn as any,
       issuer: this.jwtIssuer,
       audience: this.jwtAudience,
     });

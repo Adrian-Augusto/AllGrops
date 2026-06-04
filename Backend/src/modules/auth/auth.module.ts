@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
@@ -20,9 +20,9 @@ import { TermsAcceptedGuard } from './terms-accepted.guard';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService): JwtModuleOptions => ({
         secret: configService.get<string>('JWT_SECRET') || 'change-me',
-        signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1h' },
+        signOptions: { expiresIn: (configService.get<string>('JWT_EXPIRES_IN') || '1h') as any },
       }),
     }),
   ],
