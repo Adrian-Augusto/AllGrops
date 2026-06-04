@@ -29,12 +29,8 @@ ALTER TABLE "Group" ADD COLUMN IF NOT EXISTS "categoryId"     TEXT;
 
 -- Group: status enum (make sure EXPIRED and REJECTED exist)
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'GroupStatus') THEN
-    CREATE TYPE "GroupStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'EXPIRED');
-  ELSE
-    BEGIN ALTER TYPE "GroupStatus" ADD VALUE IF NOT EXISTS 'EXPIRED'; EXCEPTION WHEN others THEN NULL; END;
-    BEGIN ALTER TYPE "GroupStatus" ADD VALUE IF NOT EXISTS 'REJECTED'; EXCEPTION WHEN others THEN NULL; END;
-  END IF;
+  BEGIN ALTER TYPE "GroupStatus" ADD VALUE IF NOT EXISTS 'EXPIRED'; EXCEPTION WHEN others THEN NULL; END;
+  BEGIN ALTER TYPE "GroupStatus" ADD VALUE IF NOT EXISTS 'REJECTED'; EXCEPTION WHEN others THEN NULL; END;
 END $$;
 
 -- Plan: missing fields
@@ -43,7 +39,7 @@ ALTER TABLE "Plan" ADD COLUMN IF NOT EXISTS "durationDays"        INTEGER NOT NU
 ALTER TABLE "Plan" ADD COLUMN IF NOT EXISTS "maxSponsoredGroups"  INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "Plan" ADD COLUMN IF NOT EXISTS "isActive"            BOOLEAN NOT NULL DEFAULT true;
 
--- Subscription: groupId already optional (handled in previous migration)
+-- Subscription: missing fields
 ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "isActive"    BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "expiresAt"   TIMESTAMP(3);
 ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "paymentId"   TEXT;
@@ -63,15 +59,15 @@ CREATE TABLE IF NOT EXISTS "Payment" (
     CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
 );
 
--- Payment: unique constraints (safe)
+-- Payment: unique indexes (check pg_indexes, not pg_constraint)
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Payment_mercadoPagoId_key') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'Payment_mercadoPagoId_key') THEN
     ALTER TABLE "Payment" ADD CONSTRAINT "Payment_mercadoPagoId_key" UNIQUE ("mercadoPagoId");
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Payment_subscriptionId_key') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'Payment_subscriptionId_key') THEN
     ALTER TABLE "Payment" ADD CONSTRAINT "Payment_subscriptionId_key" UNIQUE ("subscriptionId");
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Payment_idempotencyKey_key') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'Payment_idempotencyKey_key') THEN
     ALTER TABLE "Payment" ADD CONSTRAINT "Payment_idempotencyKey_key" UNIQUE ("idempotencyKey");
   END IF;
 END $$;
@@ -98,8 +94,9 @@ CREATE TABLE IF NOT EXISTS "Category" (
     CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
 );
 
+-- Category: unique indexes (check pg_indexes)
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Category_slug_key') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'Category_slug_key') THEN
     ALTER TABLE "Category" ADD CONSTRAINT "Category_slug_key" UNIQUE ("slug");
   END IF;
 END $$;
@@ -129,6 +126,5 @@ DO $$ BEGIN
 END $$;
 
 -- Indexes (safe)
-CREATE INDEX IF NOT EXISTS "Group_status_idx" ON "Group"("status");
+CREATE INDEX IF NOT EXISTS "Group_status_idx"    ON "Group"("status");
 CREATE INDEX IF NOT EXISTS "Group_categoryId_idx" ON "Group"("categoryId");
-CREATE UNIQUE INDEX IF NOT EXISTS "Category_slug_key" ON "Category"("slug");
