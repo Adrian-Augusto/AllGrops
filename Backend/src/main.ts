@@ -68,7 +68,7 @@ async function bootstrap() {
 
   // ─── CORS ───────────────────────────────────────────────────────────────────
   const allowedOrigins = [
-    'https://front-end-flow-group.vercel.app',
+    process.env.FRONTEND_URL || 'https://front-end-flow-group.vercel.app',
     'https://allgrops.onrender.com',
   ];
 
