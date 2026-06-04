@@ -106,13 +106,22 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
-  async googleCallback(@Req() req: any, @Res() res: Response, @Query('code') code: string, @Query('error') error: string) {
+  async googleCallback(
+    @Req() req: any, 
+    @Res() res: Response, 
+    @Query('code') code: string, 
+    @Query('error') error: string,
+    @Query('state') state: string
+  ) {
+    // Definir fallback seguro para a URL de produção
+    const fallbackUrl = this.configService.get<string>('FRONTEND_URL') || 'https://front-end-flow-group.vercel.app';
+    let targetRedirectUrl = `${fallbackUrl}/auth/callback`;
+
     try {
       // Tratamento de erros do Google OAuth
       if (error) {
         this.logger.warn(`Google OAuth error: ${error}`);
-        const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
-        return res.redirect(`${frontendUrl}/login?error=${error}`);
+        return res.redirect(`${fallbackUrl}/login?error=${error}`);
       }
 
       if (!code && !req.user) {
@@ -130,6 +139,37 @@ export class AuthController {
       // Criar ou atualizar usuário no banco de dados
       const result = await this.authService.googleLogin(userProfile);
 
+      // Validação rigorosa do parâmetro state para evitar vulnerabilidade de Open Redirect
+      if (state && typeof state === 'string' && state.length < 2048) {
+        try {
+          const parsed = JSON.parse(state);
+          if (parsed && typeof parsed.r === 'string') {
+            const parsedUrl = new URL(parsed.r);
+            
+            // 1. Protocolo estritamente http ou https (evita javascript:, etc.)
+            const hasSafeProtocol = parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+            
+            // 2. Hostname estritamente na whitelist ou correspondente ao padrão da Vercel
+            const isWhitelisted = [
+              'localhost',
+              '127.0.0.1',
+              'front-end-flow-group.vercel.app'
+            ].some(domain => parsedUrl.hostname === domain || parsedUrl.hostname.endsWith('.' + domain));
+
+            const isVercelPreview = /^front-end-flow-group(-[a-z0-9]+)*(-adrian-augustos-projects)?\.vercel\.app$/.test(parsedUrl.hostname);
+
+            if (hasSafeProtocol && (isWhitelisted || isVercelPreview)) {
+              // Se passar em todas as validações, reconstrói o path final de callback do frontend com a origem validada
+              targetRedirectUrl = `${parsedUrl.origin}/auth/callback`;
+            } else {
+              this.logger.warn(`Open Redirect detectado e bloqueado para a URL: ${parsed.r}`);
+            }
+          }
+        } catch (e) {
+          this.logger.warn(`Falha ao ler parâmetro state do OAuth: ${e.message}`);
+        }
+      }
+
       // Setar o token em cookie HttpOnly (mais seguro)
       res.cookie('accessToken', result.accessToken, {
         httpOnly: true, // Prevents XSS attacks
@@ -140,12 +180,10 @@ export class AuthController {
       });
 
       // Redirecionar sem token na URL
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
-      return res.redirect(`${frontendUrl}/auth/callback`);
+      return res.redirect(targetRedirectUrl);
     } catch (error) {
       this.logger.error('Google OAuth callback error');
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
-      return res.redirect(`${frontendUrl}/login?error=auth_failed`);
+      return res.redirect(`${fallbackUrl}/login?error=auth_failed`);
     }
   }
 
