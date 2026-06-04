@@ -71,6 +71,8 @@ export class TermsService {
    * Accept terms for a user
    */
   async acceptTerms(userId: string, dto: AcceptTermsDto) {
+    console.log('[TermsService] acceptTerms called for userId:', userId, 'dto:', dto);
+
     // Validate that user accepted the checkbox
     if (!dto.accepted) {
       throw new BadRequestException('Você deve aceitar os termos para continuar');
@@ -80,6 +82,8 @@ export class TermsService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
+
+    console.log('[TermsService] User found:', user ? user.id : 'NOT FOUND');
 
     if (!user) {
       throw new UnauthorizedException('Usuário não encontrado');
@@ -94,6 +98,8 @@ export class TermsService {
         termsAcceptedAt: new Date(),
       },
     });
+
+    console.log('[TermsService] User updated:', updatedUser.id, 'termsAccepted:', updatedUser.termsAccepted);
 
     return {
       message: 'Termos aceitos com sucesso',
