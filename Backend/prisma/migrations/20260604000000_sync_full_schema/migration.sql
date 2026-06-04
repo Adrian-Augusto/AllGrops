@@ -94,6 +94,10 @@ CREATE TABLE IF NOT EXISTS "Category" (
     CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
 );
 
+-- Category: add missing columns in case the table already existed without them
+ALTER TABLE "Category" ADD COLUMN IF NOT EXISTS "name" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "Category" ADD COLUMN IF NOT EXISTS "slug" TEXT NOT NULL DEFAULT '';
+
 -- Category: unique indexes (check pg_indexes)
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'Category_slug_key') THEN
