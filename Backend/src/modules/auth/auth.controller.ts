@@ -89,7 +89,7 @@ export class AuthController {
     res.cookie('accessToken', result.accessToken, {
       httpOnly: true, // Prevents XSS attacks
       secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-      sameSite: 'lax', // CSRF protection
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Allow cross-site cookies in production
       maxAge: 3600000, // 1 hour
       path: '/',
     });
@@ -171,31 +171,51 @@ export class AuthController {
         }
       }
 
-      // Setar o token em cookie HttpOnly (mais seguro)
-      res.cookie('accessToken', result.accessToken, {
-        httpOnly: true, // Prevents XSS attacks
-        secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-        sameSite: 'lax', // CSRF protection
-        maxAge: 3600000, // 1 hour
-        path: '/',
-      });
+      // Gera o código temporário de uso único contendo os resultados da autenticação
+      const tempCode = this.authService.generateTempCode(result);
 
-      // Redirecionar sem token na URL
-      return res.redirect(targetRedirectUrl);
+      // Redirecionar para o frontend passando apenas o código temporário seguro
+      return res.redirect(`${targetRedirectUrl}?code=${tempCode}`);
     } catch (error) {
       this.logger.error('Google OAuth callback error');
       return res.redirect(`${fallbackUrl}/login?error=auth_failed`);
     }
   }
 
+  @Post('exchange-code')
+  async exchangeCode(@Body('code') code: string, @Res() res: Response) {
+    if (!code) {
+      throw new BadRequestException('Código de autorização é obrigatório');
+    }
+    
+    // Valida e consome o código temporário
+    const result = this.authService.exchangeTempCode(code);
+    
+    // Salva o token em cookie HttpOnly para compatibilidade/backup
+    res.cookie('accessToken', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 3600000, // 1 hora
+      path: '/',
+    });
+    
+    return res.json(result);
+  }
+
   @Get('google/profile')
   @UseGuards(JwtAuthGuard)
   async getGoogleProfile(@Req() req: any) {
-    // Returns current user profile if authenticated
     if (req.user) {
+      // Extrai o token do header de autorização ou do cookie de forma segura
+      const token = req.headers.authorization?.split(' ')[1] || req.cookies?.accessToken;
+      
       return {
         id: req.user.id,
         email: req.user.email,
+        name: req.user.name,
+        role: req.user.role,
+        token: token || null,
       };
     }
     return null;
@@ -206,7 +226,7 @@ export class AuthController {
     res.clearCookie('accessToken', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
     });
     return res.json({ message: 'Logged out successfully' });

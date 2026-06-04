@@ -6,11 +6,14 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import axios from 'axios';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly isProduction = process.env.NODE_ENV === 'production';
+  // Armazena códigos temporários na memória: code -> { result, expiresAt }
+  private readonly tempCodes = new Map<string, { result: any; expiresAt: number }>();
 
   constructor(
     private prisma: PrismaService,
@@ -327,5 +330,46 @@ export class AuthService {
       // Se falhar, tenta retornar a URL original do Google
       return imageUrl;
     }
+  }
+
+  /**
+   * Gera um código temporário de uso único (one-time code) associado aos dados de login
+   * Expira em 3 minutos para segurança
+   */
+  generateTempCode(loginResult: any): string {
+    const code = randomBytes(24).toString('hex');
+    const expiresAt = Date.now() + 3 * 60 * 1000; // 3 minutos
+    
+    this.tempCodes.set(code, { result: loginResult, expiresAt });
+    
+    // Auto-limpeza preventiva caso não seja consumido
+    setTimeout(() => {
+      this.tempCodes.delete(code);
+    }, 3 * 60 * 1000);
+    
+    return code;
+  }
+
+  /**
+   * Valida e consome (invalida) um código temporário de uso único
+   */
+  exchangeTempCode(code: string): any {
+    if (!code || typeof code !== 'string') {
+      throw new BadRequestException('Código inválido ou não fornecido');
+    }
+
+    const data = this.tempCodes.get(code);
+    if (!data) {
+      throw new UnauthorizedException('Código de autorização inválido, já utilizado ou expirado');
+    }
+
+    // Invalida IMEDIATAMENTE (uso único)
+    this.tempCodes.delete(code);
+
+    if (Date.now() > data.expiresAt) {
+      throw new UnauthorizedException('Código de autorização expirado');
+    }
+
+    return data.result;
   }
 }
