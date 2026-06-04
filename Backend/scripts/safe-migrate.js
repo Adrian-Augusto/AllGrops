@@ -1,58 +1,82 @@
 #!/usr/bin/env node
 /**
  * safe-migrate.js
- * Resolves any failed Prisma migrations then runs migrate deploy.
- * Safe to run multiple times — if there's nothing to resolve, it continues normally.
+ * 1. Tenta resolver qualquer migration com falha na tabela _prisma_migrations
+ * 2. Depois roda prisma migrate deploy normalmente
  */
 
 const { execSync } = require('child_process');
 
-function run(cmd) {
+function run(cmd, opts = {}) {
+  console.log(`\n▶ ${cmd}`);
+  execSync(cmd, { stdio: 'inherit', ...opts });
+}
+
+function tryRun(cmd) {
   console.log(`\n▶ ${cmd}`);
   try {
     execSync(cmd, { stdio: 'inherit' });
-  } catch (err) {
-    // Non-zero exit — log but don't throw (we'll throw later if needed)
+    return true;
+  } catch {
     return false;
   }
-  return true;
 }
 
-async function main() {
-  const { PrismaClient } = require('@prisma/client');
-  const prisma = new PrismaClient();
+async function resolveFailed() {
+  // Tenta conectar ao banco via DATABASE_URL usando o driver pg
+  // para buscar todas as migrations com falha dinamicamente
+  let failedNames = [];
 
   try {
-    // Find all failed migrations
-    const failed = await prisma.$queryRaw`
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) throw new Error('DATABASE_URL not set');
+
+    // pg é dependência transitiva do @prisma/client
+    const { Client } = require('pg');
+    const client = new Client({ connectionString });
+    await client.connect();
+
+    const result = await client.query(`
       SELECT migration_name
       FROM "_prisma_migrations"
       WHERE finished_at IS NULL
-        AND applied_steps_count > 0
         AND rolled_back_at IS NULL
-    `;
-
-    if (failed.length === 0) {
-      console.log('✅ No failed migrations found.');
-    } else {
-      for (const row of failed) {
-        const name = row.migration_name;
-        console.log(`⚠️  Resolving failed migration: ${name}`);
-        run(`npx prisma migrate resolve --rolled-back ${name}`);
-      }
-    }
+        AND started_at IS NOT NULL
+    `);
+    failedNames = result.rows.map(r => r.migration_name);
+    await client.end();
   } catch (e) {
-    console.log('⚠️  Could not query migrations table, continuing...', e.message);
-  } finally {
-    await prisma.$disconnect();
+    console.log(`⚠️  Could not query migrations table: ${e.message}`);
+    console.log('    Falling back to resolving known failed migration by name...');
+    // Fallback: tenta resolver a migration que sabemos que falhou
+    failedNames = ['20260604000000_sync_full_schema'];
   }
 
-  // Now run migrate deploy
+  if (failedNames.length === 0) {
+    console.log('✅ No failed migrations found.');
+    return;
+  }
+
+  for (const name of failedNames) {
+    console.log(`⚠️  Resolving failed migration: ${name}`);
+    const ok = tryRun(`npx prisma migrate resolve --rolled-back ${name}`);
+    if (ok) {
+      console.log(`✅ Resolved: ${name}`);
+    } else {
+      console.log(`ℹ️  Could not resolve ${name} (may already be resolved)`);
+    }
+  }
+}
+
+async function main() {
+  await resolveFailed();
+
   console.log('\n▶ Running prisma migrate deploy...');
-  execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+  run('npx prisma migrate deploy');
+  console.log('\n✅ Migrations applied successfully.');
 }
 
 main().catch((e) => {
-  console.error(e);
+  console.error('❌ Migration error:', e.message);
   process.exit(1);
 });
