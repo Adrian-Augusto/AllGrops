@@ -111,22 +111,27 @@ export class TermsService {
    * Check if user needs to accept new terms version
    */
   async checkTermsStatus(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
 
-    if (!user) {
-      throw new UnauthorizedException('Usuário não encontrado');
+      if (!user) {
+        throw new UnauthorizedException('Usuário não encontrado');
+      }
+
+      const needsUpdate =
+        !user.termsAccepted || user.termsVersion < CURRENT_TERMS_VERSION;
+
+      return {
+        termsAccepted: user.termsAccepted || false,
+        userVersion: user.termsVersion || 0,
+        currentVersion: CURRENT_TERMS_VERSION,
+        needsUpdate,
+      };
+    } catch (error) {
+      console.error('Error checking terms status:', error);
+      throw error;
     }
-
-    const needsUpdate =
-      !user.termsAccepted || user.termsVersion < CURRENT_TERMS_VERSION;
-
-    return {
-      termsAccepted: user.termsAccepted,
-      userVersion: user.termsVersion,
-      currentVersion: CURRENT_TERMS_VERSION,
-      needsUpdate,
-    };
   }
 }
