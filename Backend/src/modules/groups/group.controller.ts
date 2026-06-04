@@ -36,8 +36,7 @@ export class GroupsController {
 
   // Rotas genéricas e dinâmicas POR ÚLTIMO
   @Get()
-  @UseGuards(JwtAuthGuard)
-  findApproved(@CurrentUser() user: any, @Query('status') status?: string, @Query('categoryId') categoryId?: string, @Query('page') page = 1, @Query('limit') limit = 10) {
+  findApproved(@Query('status') status?: string, @Query('categoryId') categoryId?: string, @Query('page') page = 1, @Query('limit') limit = 10) {
     // Se status=approved ou não especificado, retorna aprovados
     return this.groupsService.findApproved(categoryId, page, limit);
   }

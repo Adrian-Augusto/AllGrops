@@ -104,12 +104,18 @@ export class AuthController {
       // Criar ou atualizar usuário no banco de dados
       const result = await this.authService.googleLogin(userProfile);
 
-      // Redirecionar para o frontend com o JWT no fragment (#)
-      // SEGURANÇA: fragment nunca é enviado ao servidor, não aparece em logs nem no header Referer
+      // Setar o token em cookie HttpOnly (mais seguro)
+      res.cookie('accessToken', result.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 3600000, // 1 hora
+        path: '/',
+      });
+
+      // Redirecionar sem token na URL
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
-      const redirectUrl = `${frontendUrl}/auth/callback#token=${result.accessToken}`;
-      
-      return res.redirect(redirectUrl);
+      return res.redirect(`${frontendUrl}/auth/callback`);
     } catch (error) {
       console.error('Google OAuth callback error:', error);
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
