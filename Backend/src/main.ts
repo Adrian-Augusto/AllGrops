@@ -128,12 +128,23 @@ async function bootstrap() {
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (curl, mobile apps, server-to-server)
-      if (!origin || uniqueOrigins.includes(origin)) {
+      if (!origin) {
         callback(null, true);
-      } else {
-        console.warn(`🚫 CORS blocked origin: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
+        return;
       }
+      // Allow exact matches
+      if (uniqueOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      // Allow all Vercel preview deployments for this project
+      const vercelPreview = /^https:\/\/front-end-flow-group(-[a-z0-9]+)*(-adrian-augustos-projects)?\.vercel\.app$/;
+      if (vercelPreview.test(origin)) {
+        callback(null, true);
+        return;
+      }
+      console.warn(`🚫 CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
