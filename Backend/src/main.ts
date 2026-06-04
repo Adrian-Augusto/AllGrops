@@ -71,6 +71,8 @@ async function bootstrap() {
     process.env.FRONTEND_URL || 'https://front-end-flow-group.vercel.app',
     'https://front-end-flow-group.vercel.app',
     'https://allgrops.onrender.com',
+    // Allow all Vercel deployments
+    /\.vercel\.app$/,
   ];
 
   console.log('✅ Allowed CORS origins:', allowedOrigins);
@@ -87,9 +89,13 @@ async function bootstrap() {
         callback(null, true);
         return;
       }
-      // Allow all Vercel preview deployments for this project
-      const vercelPreview = /^https:\/\/front-end-flow-group(-[a-z0-9]+)*(-adrian-augustos-projects)?\.vercel\.app$/;
-      if (vercelPreview.test(origin)) {
+      // Allow all Vercel deployments (any *.vercel.app)
+      if (origin.endsWith('.vercel.app')) {
+        callback(null, true);
+        return;
+      }
+      // Allow localhost for development
+      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
         callback(null, true);
         return;
       }
@@ -99,21 +105,39 @@ async function bootstrap() {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
   // ────────────────────────────────────────────────────────────────────────────
 
   // Middleware specific to /uploads with CORS
   app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const origin = req.headers.origin;
-    if (!origin || allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    
+    // Allow requests with no origin
+    if (!origin) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    } 
+    // Allow all Vercel deployments
+    else if (origin.endsWith('.vercel.app')) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    }
+    // Allow localhost for development
+    else if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    // Allow exact matches from allowedOrigins
+    else if (allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
     }
 
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
     if (req.method === 'OPTIONS') {
-      return res.sendStatus(200);
+      return res.sendStatus(204);
     }
     next();
   });
