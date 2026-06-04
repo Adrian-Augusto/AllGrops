@@ -22,7 +22,7 @@ import { TermsAcceptedGuard } from './terms-accepted.guard';
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET') || 'change-me',
-        signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1h' },
+        signOptions: { expiresIn: (configService.get<string>('JWT_EXPIRES_IN') || '1h') as string },
       }),
     }),
   ],
