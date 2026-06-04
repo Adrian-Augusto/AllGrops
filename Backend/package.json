@@ -7,7 +7,7 @@
     "install:ci": "npm ci",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "migrate:deploy": "prisma migrate deploy",
+    "migrate:deploy": "node scripts/safe-migrate.js",
     "db:push": "prisma db push",
     "build": "npm run prisma:generate && tsc -p tsconfig.json",
     "start": "node dist/main.js",
