@@ -166,7 +166,8 @@ export class AuthController {
             }
           }
         } catch (e) {
-          this.logger.warn(`Falha ao ler parâmetro state do OAuth: ${e.message}`);
+          const errorMsg = e instanceof Error ? e.message : String(e);
+          this.logger.warn(`Falha ao ler parâmetro state do OAuth: ${errorMsg}`);
         }
       }
 
