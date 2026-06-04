@@ -12,43 +12,10 @@ import * as path from 'path';
 import { ImageProxyInterceptor } from './modules/upload/image-proxy.interceptor';
 import { PrismaService } from './prisma/prisma.service';
 
-async function ensureDefaultAdmin(prisma: PrismaService) {
-  const adminEmail = process.env.DEFAULT_ADMIN_EMAIL;
-  if (!adminEmail) {
-    console.log('⚠️  DEFAULT_ADMIN_EMAIL not set, skipping admin setup');
-    return;
-  }
-
-  try {
-    const user = await prisma.user.findUnique({
-      where: { email: adminEmail },
-    });
-
-    if (user) {
-      if (user.role !== 'ADMIN') {
-        await prisma.user.update({
-          where: { email: adminEmail },
-          data: { role: 'ADMIN' },
-        });
-        console.log(`✅ User promoted to ADMIN`);
-      }
-    } else {
-      console.log(`⚠️  Admin user not found. Please create this user first.`);
-    }
-  } catch (error) {
-    console.error('Error ensuring default admin:', error);
-  }
-}
-
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
   const prisma = app.get(PrismaService);
-
-  // Ensure default admin user exists in production
-  if (process.env.NODE_ENV === 'production') {
-    await ensureDefaultAdmin(prisma);
-  }
 
   // Security: Apply helmet middleware for HTTP headers protection
   app.use(helmet({
@@ -100,30 +67,12 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   // ─── CORS ───────────────────────────────────────────────────────────────────
-  // Read env vars and normalise (ensure https:// prefix)
-  const rawFrontend = configService.get<string>('FRONTEND_URL') ?? '';
-  const rawClient   = configService.get<string>('CLIENT_ORIGIN') ?? '';
-
-  const normalise = (url: string) =>
-    url ? (url.startsWith('http') ? url : `https://${url}`) : null;
-
-  const allowedOrigins: string[] = [
-    // Always allow the production URLs explicitly
+  const allowedOrigins = [
     'https://front-end-flow-group.vercel.app',
     'https://allgrops.onrender.com',
-    // Dynamic values from env (guard against missing https://)
-    normalise(rawFrontend),
-    normalise(rawClient),
-    // Local dev
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:3000',
-  ].filter(Boolean) as string[];
+  ];
 
-  // Remove duplicates
-  const uniqueOrigins = [...new Set(allowedOrigins)];
-  console.log('✅ Allowed CORS origins:', uniqueOrigins);
+  console.log('✅ Allowed CORS origins:', allowedOrigins);
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -133,7 +82,7 @@ async function bootstrap() {
         return;
       }
       // Allow exact matches
-      if (uniqueOrigins.includes(origin)) {
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
@@ -155,7 +104,7 @@ async function bootstrap() {
   // Middleware specific to /uploads with CORS
   app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const origin = req.headers.origin;
-    if (!origin || uniqueOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin || '*');
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
