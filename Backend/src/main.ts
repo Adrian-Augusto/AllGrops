@@ -99,23 +99,39 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ImageProxyInterceptor());
   app.setGlobalPrefix('api/v1');
 
-  // Enable CORS for Google OAuth redirect
-  const frontendUrl = configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
-  const allowedOrigins = [
-    frontendUrl,
+  // ─── CORS ───────────────────────────────────────────────────────────────────
+  // Read env vars and normalise (ensure https:// prefix)
+  const rawFrontend = configService.get<string>('FRONTEND_URL') ?? '';
+  const rawClient   = configService.get<string>('CLIENT_ORIGIN') ?? '';
+
+  const normalise = (url: string) =>
+    url ? (url.startsWith('http') ? url : `https://${url}`) : null;
+
+  const allowedOrigins: string[] = [
+    // Always allow the production URLs explicitly
+    'https://front-end-flow-group.vercel.app',
     'https://allgrops.onrender.com',
+    // Dynamic values from env (guard against missing https://)
+    normalise(rawFrontend),
+    normalise(rawClient),
+    // Local dev
     'http://localhost:3000',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:3000',
-  ];
+  ].filter(Boolean) as string[];
+
+  // Remove duplicates
+  const uniqueOrigins = [...new Set(allowedOrigins)];
+  console.log('✅ Allowed CORS origins:', uniqueOrigins);
 
   app.enableCors({
     origin: (origin, callback) => {
-      // If no origin (requests like curl, mobile apps, etc), allow
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (curl, mobile apps, server-to-server)
+      if (!origin || uniqueOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.warn(`🚫 CORS blocked origin: ${origin}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -123,11 +139,12 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
+  // ────────────────────────────────────────────────────────────────────────────
 
   // Middleware specific to /uploads with CORS
   app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const origin = req.headers.origin;
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || uniqueOrigins.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin || '*');
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
