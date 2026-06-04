@@ -94,11 +94,15 @@ CREATE TABLE IF NOT EXISTS "Category" (
     CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
 );
 
--- Category: add missing columns in case the table already existed without them
-ALTER TABLE "Category" ADD COLUMN IF NOT EXISTS "name" TEXT NOT NULL DEFAULT '';
-ALTER TABLE "Category" ADD COLUMN IF NOT EXISTS "slug" TEXT NOT NULL DEFAULT '';
+-- Category: add missing columns safely (nullable first to avoid duplicate DEFAULT issues)
+ALTER TABLE "Category" ADD COLUMN IF NOT EXISTS "name" TEXT;
+ALTER TABLE "Category" ADD COLUMN IF NOT EXISTS "slug" TEXT;
 
--- Category: unique indexes (check pg_indexes)
+-- Populate any NULL slugs/names with the row id as a safe unique fallback
+UPDATE "Category" SET "name" = "id" WHERE "name" IS NULL OR "name" = '';
+UPDATE "Category" SET "slug" = "id" WHERE "slug" IS NULL OR "slug" = '';
+
+-- Category: unique index on slug (safe)
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'Category_slug_key') THEN
     ALTER TABLE "Category" ADD CONSTRAINT "Category_slug_key" UNIQUE ("slug");
