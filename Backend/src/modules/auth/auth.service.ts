@@ -301,8 +301,7 @@ export class AuthService {
 
   /**
    * Generate JWT with issuer and audience claims
-   * Standard claims: sub (subject), email, role
-   * Custom claims: iss (issuer), aud (audience)
+   * Standard claims: sub (subject), email, role, iss (issuer), aud (audience)
    */
   private generateJwt(payload: Partial<JwtPayload>): string {
     const jwtPayload: JwtPayload = {
@@ -313,10 +312,10 @@ export class AuthService {
       aud: this.jwtAudience,
     };
 
+    // Note: issuer and audience should only be in payload, not in sign options
+    // to avoid "The payload already has an 'aud' property" error
     return this.jwtService.sign(jwtPayload, {
       expiresIn: this.jwtExpiresIn as any,
-      issuer: this.jwtIssuer,
-      audience: this.jwtAudience,
     });
   }
 
