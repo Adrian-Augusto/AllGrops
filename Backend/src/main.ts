@@ -18,6 +18,9 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const prisma = app.get(PrismaService);
 
+  // Trust proxy for Render (required for express-rate-limit)
+  app.set('trust proxy', true);
+
   // Security: Apply helmet middleware for HTTP headers protection
   app.use(helmet({
     contentSecurityPolicy: {
@@ -65,7 +68,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ transform: true, forbidNonWhitelisted: false }));
   app.useGlobalInterceptors(new ImageProxyInterceptor());
-  app.useGlobalInterceptors(new RequestLoggingInterceptor(app.get(PrismaService)));
+  // app.useGlobalInterceptors(new RequestLoggingInterceptor(app.get(PrismaService))); // Temporarily disabled until migration is applied
   app.setGlobalPrefix('api/v1');
 
   // ─── CORS ───────────────────────────────────────────────────────────────────
