@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { v2 as cloudinary } from 'cloudinary';
+import { v2 as cloudinary, UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
 
 @Injectable()
 export class UploadService {
@@ -36,7 +36,7 @@ export class UploadService {
       }
 
       // Upload to Cloudinary
-      const result = await new Promise<any>((resolve, reject) => {
+      const result = await new Promise<UploadApiResponse>((resolve, reject) => {
         cloudinary.uploader.upload(
           `data:${mime};base64,${base64}`,
           {
@@ -47,11 +47,13 @@ export class UploadService {
               { quality: 'auto' },
             ],
           },
-          (error, result) => {
+          (error: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
             if (error) {
               reject(error);
-            } else {
+            } else if (result) {
               resolve(result);
+            } else {
+              reject(new Error('Unknown error uploading to Cloudinary'));
             }
           },
         );

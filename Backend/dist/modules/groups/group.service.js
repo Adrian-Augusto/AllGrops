@@ -296,10 +296,15 @@ let GroupsService = GroupsService_1 = class GroupsService {
             },
         });
         // Enviar email de aprovação (não quebra a request se falhar)
-        this.mailService.sendGroupStatusEmail(updatedGroup.createdBy.email, updatedGroup.name, 'APPROVED').catch((error) => {
-            const msg = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Erro ao enviar email de aprovação: ${msg}`);
-        });
+        if (updatedGroup.createdBy?.email) {
+            this.mailService.sendGroupStatusEmail(updatedGroup.createdBy.email, updatedGroup.name, 'APPROVED').catch((error) => {
+                const msg = error instanceof Error ? error.message : String(error);
+                this.logger.error(`Erro ao enviar email de aprovação: ${msg}`);
+            });
+        }
+        else {
+            this.logger.warn(`Usuário ${updatedGroup.createdBy?.id} não tem email, pulando envio de email de aprovação`);
+        }
         return updatedGroup;
     }
     async rejectGroup(groupId, adminId, reason) {
@@ -324,12 +329,17 @@ let GroupsService = GroupsService_1 = class GroupsService {
                 reviewedBy: { select: { id: true, name: true, email: true } },
             },
         });
-        console.log('[GroupsService] Group rejected, sending email to:', updatedGroup.createdBy.email);
+        console.log('[GroupsService] Group rejected, sending email to:', updatedGroup.createdBy?.email);
         // Enviar email de rejeição (não quebra a request se falhar)
-        this.mailService.sendGroupStatusEmail(updatedGroup.createdBy.email, updatedGroup.name, 'REJECTED', reason).catch((error) => {
-            const msg = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Erro ao enviar email de rejeição: ${msg}`);
-        });
+        if (updatedGroup.createdBy?.email) {
+            this.mailService.sendGroupStatusEmail(updatedGroup.createdBy.email, updatedGroup.name, 'REJECTED', reason).catch((error) => {
+                const msg = error instanceof Error ? error.message : String(error);
+                this.logger.error(`Erro ao enviar email de rejeição: ${msg}`);
+            });
+        }
+        else {
+            this.logger.warn(`Usuário não tem email, pulando envio de email de rejeição`);
+        }
         return updatedGroup;
     }
     async getGroupStatistics() {
@@ -379,12 +389,17 @@ let GroupsService = GroupsService_1 = class GroupsService {
         const deletedGroup = await this.prisma.group.delete({
             where: { id: groupId },
         });
-        console.log('[GroupsService] Group deleted, sending email to:', group.createdBy.email);
+        console.log('[GroupsService] Group deleted, sending email to:', group.createdBy?.email);
         // Enviar email notificando deletção
-        this.mailService.sendGroupDeletedEmail(group.createdBy.email, group.name).catch((error) => {
-            const msg = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Erro ao enviar email de deleção: ${msg}`);
-        });
+        if (group.createdBy?.email) {
+            this.mailService.sendGroupDeletedEmail(group.createdBy.email, group.name).catch((error) => {
+                const msg = error instanceof Error ? error.message : String(error);
+                this.logger.error(`Erro ao enviar email de deleção: ${msg}`);
+            });
+        }
+        else {
+            this.logger.warn(`Usuário não tem email, pulando envio de email de deleção`);
+        }
         return {
             message: `Grupo "${group.name}" foi deletado com sucesso`,
             deletedGroup,

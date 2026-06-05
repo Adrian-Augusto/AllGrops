@@ -120,6 +120,8 @@ export class SubscriptionsService {
         this.logger.error(`❌ Erro ao enviar email de aprovação de assinatura: ${msg}`);
         // Continue processing even if email fails
       }
+    } else if (status === 'APPROVED' && !existingSubscription.user?.email) {
+      this.logger.warn(`Usuário ${existingSubscription.userId} não tem email, pulando envio de email de aprovação de assinatura`);
     }
 
     return subscription;
