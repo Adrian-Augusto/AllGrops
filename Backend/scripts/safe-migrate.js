@@ -9,6 +9,10 @@
  */
 
 const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+
+const prismaCliPath = path.join(__dirname, '..', 'node_modules', 'prisma', 'build', 'index.js');
 
 function tryRun(cmd) {
   console.log(`\n> ${cmd}`);
@@ -21,21 +25,21 @@ function tryRun(cmd) {
   }
 }
 
-async function withDbClient(callback) {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) throw new Error('DATABASE_URL not set');
+function getPrismaCommand(args) {
+  if (fs.existsSync(prismaCliPath)) {
+    return `node "${prismaCliPath}" ${args}`;
+  }
 
-  const { Client } = require('pg');
-  const client = new Client({
-    connectionString,
-    ssl: connectionString.includes('localhost') ? undefined : { rejectUnauthorized: false },
-  });
+  return `npx prisma ${args}`;
+}
 
-  await client.connect();
+async function withPrismaClient(callback) {
+  const { PrismaClient } = require('@prisma/client');
+  const prisma = new PrismaClient();
   try {
-    return await callback(client);
+    return await callback(prisma);
   } finally {
-    await client.end();
+    await prisma.$disconnect();
   }
 }
 
@@ -43,7 +47,7 @@ async function resolveFailed() {
   let failedNames = [];
 
   try {
-    const result = await withDbClient((client) => client.query(`
+    const result = await withPrismaClient((prisma) => prisma.$queryRawUnsafe(`
       SELECT migration_name
       FROM "_prisma_migrations"
       WHERE finished_at IS NULL
@@ -67,7 +71,7 @@ async function resolveFailed() {
 
   for (const name of failedNames) {
     console.log(`Resolving failed migration as rolled back: ${name}`);
-    tryRun(`npx prisma migrate resolve --rolled-back ${name}`);
+    tryRun(getPrismaCommand(`migrate resolve --rolled-back ${name}`));
   }
 }
 
@@ -150,10 +154,10 @@ async function applyCompatibilityPatch() {
     );`,
   ];
 
-  await withDbClient(async (client) => {
+  await withPrismaClient(async (prisma) => {
     for (const sql of statements) {
       try {
-        await client.query(sql);
+        await prisma.$executeRawUnsafe(sql);
       } catch (error) {
         console.log(`Warning: patch statement skipped: ${error.message}`);
       }
@@ -166,7 +170,7 @@ async function applyCompatibilityPatch() {
 async function main() {
   await resolveFailed();
 
-  const migrated = tryRun('npx prisma migrate deploy');
+  const migrated = tryRun(getPrismaCommand('migrate deploy'));
   if (migrated) {
     console.log('\nMigrations applied successfully.');
     return;
