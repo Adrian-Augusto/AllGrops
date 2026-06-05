@@ -137,6 +137,7 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
             console.log('[PaymentsService] Payment record created:', paymentRecord.id);
             // Create Mercado Pago preference
             const frontendUrl = process.env.FRONTEND_URL || 'https://allgrops.onrender.com';
+            const notificationUrl = this.getValidUrl(process.env.MERCADO_PAGO_WEBHOOK_URL);
             console.log('[PaymentsService] Creating Mercado Pago preference...');
             const preference = {
                 items: [
@@ -150,7 +151,6 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
                 payer: {
                     email: process.env.MERCADO_PAGO_PAYER_EMAIL || 'noreply@allgrops.com',
                 },
-                notification_url: process.env.MERCADO_PAGO_WEBHOOK_URL,
                 external_reference: externalReference,
                 back_urls: {
                     success: `${frontendUrl}/pagamento/sucesso`,
@@ -161,6 +161,12 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
                     excluded_payment_types: [{ id: 'atm' }],
                 },
             };
+            if (notificationUrl) {
+                preference.notification_url = notificationUrl;
+            }
+            else {
+                this.logger.warn('MERCADO_PAGO_WEBHOOK_URL invalid or not configured; creating preference without notification_url');
+            }
             const response = await this.preferenceClient.create({ body: preference });
             console.log('[PaymentsService] Mercado Pago preference created:', response.id);
             // Save preference ID to subscription
@@ -176,7 +182,7 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
             };
         }
         catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorMessage = this.formatError(error);
             const errorStack = error instanceof Error ? error.stack : '';
             console.error('[PaymentsService] Error creating preference:', errorMessage);
             this.logger.error(`Error creating preference: ${errorMessage}`, errorStack);
@@ -294,6 +300,13 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
         });
     }
     async ensureDefaultPlans() {
+        await this.prisma.plan.updateMany({
+            where: {
+                isActive: true,
+                price: 0.01,
+            },
+            data: { isActive: false },
+        });
         for (const plan of this.defaultPlans) {
             await this.prisma.plan.upsert({
                 where: { name: plan.name },
@@ -315,6 +328,31 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
                     isActive: true,
                 },
             });
+        }
+    }
+    getValidUrl(value) {
+        if (!value)
+            return undefined;
+        try {
+            const url = new URL(value);
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+                return undefined;
+            }
+            return url.toString();
+        }
+        catch {
+            return undefined;
+        }
+    }
+    formatError(error) {
+        if (error instanceof Error) {
+            return error.message;
+        }
+        try {
+            return JSON.stringify(error);
+        }
+        catch {
+            return String(error);
         }
     }
     // Extract only safe fields for logging
