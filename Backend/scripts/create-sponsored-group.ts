@@ -25,7 +25,7 @@ async function main() {
       description: 'Grupo para testar ordenação com patrocínio',
       link: 'https://discord.gg/teste',
       platform: 'Discord',
-      photoUrl: 'https://via.placeholder.com/200',
+      photoUrl: '',
       createdById: user.id,
       status: 'APPROVED',
     },

@@ -41,7 +41,7 @@ async function main() {
         name: `${user.name}'s Group`,
         link: 'https://example.com',
         platform: 'whatsapp',
-        photoUrl: 'https://via.placeholder.com/150',
+        photoUrl: '',
         status: 'APPROVED',
         createdById: user.id,
       },

@@ -91,7 +91,7 @@ async function main() {
       description: 'Este grupo será deletado no teste',
       link: 'https://example.com/temp',
       platform: 'Test',
-      photoUrl: 'https://via.placeholder.com/200',
+      photoUrl: '',
       createdById: admin.id,
       status: 'APPROVED',
     },

@@ -8,13 +8,22 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
 
   constructor(private configService: ConfigService) {
+    const emailUser = this.configService.get<string>('EMAIL_USER');
+    const emailPass = this.configService.get<string>('EMAIL_PASS');
+
+    if (!emailUser || !emailPass) {
+      this.logger.warn('⚠️ AVISO: Variáveis de email (EMAIL_USER ou EMAIL_PASS) não configuradas!');
+    }
+
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: this.configService.get<string>('EMAIL_USER'),
-        pass: this.configService.get<string>('EMAIL_PASS'),
+        user: emailUser,
+        pass: emailPass,
       },
     });
+
+    this.logger.log(`📧 MailService inicializado com email: ${emailUser || 'NÃO CONFIGURADO'}`);
   }
 
   async sendGroupStatusEmail(
@@ -24,7 +33,11 @@ export class MailService {
     reason?: string,
   ): Promise<void> {
     try {
+      this.logger.log(`📧 Iniciando envio de email para: ${to} - Status: ${status} - Grupo: "${groupName}"`);
+
       const { subject, htmlContent } = this.getEmailContent(groupName, status, reason);
+
+      this.logger.log(`📧 Email subject: ${subject}`);
 
       const result = await this.transporter.sendMail({
         from: `AllGrops Team <${this.configService.get<string>('EMAIL_USER')}>`,
@@ -36,14 +49,18 @@ export class MailService {
       this.logger.log(`✅ Email enviado com sucesso para ${to} - Status: ${status} - MessageId: ${result.messageId}`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : '';
       this.logger.error(`❌ ERRO ao enviar email para ${to}: ${msg}`);
-      console.error('Detalhes do erro:', error);
+      this.logger.error(`📋 Stack trace: ${errorStack}`);
+      console.error('Detalhes completos do erro:', error);
       // Não relança o erro para não quebrar a request
     }
   }
 
   async sendGroupDeletedEmail(to: string, groupName: string): Promise<void> {
     try {
+      this.logger.log(`📧 Iniciando envio de email de deleção para: ${to} - Grupo: "${groupName}"`);
+
       const backendUrl = this.configService.get<string>('BACKEND_URL') || 'https://allgrops.onrender.com';
       const logoUrl = `${backendUrl}/img/e53883e9-1f35-436b-a406-790d9d3d0fd6.png`;
       const subject = '🗑️ Seu grupo foi deletado';
@@ -91,13 +108,17 @@ export class MailService {
       this.logger.log(`✅ Email de deleção enviado para ${to} - MessageId: ${result.messageId}`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : '';
       this.logger.error(`❌ ERRO ao enviar email de deleção para ${to}: ${msg}`);
-      console.error('Detalhes do erro:', error);
+      this.logger.error(`📋 Stack trace: ${errorStack}`);
+      console.error('Detalhes completos do erro:', error);
     }
   }
 
   async sendGroupExpiredEmail(to: string, groupName: string): Promise<void> {
     try {
+      this.logger.log(`📧 Iniciando envio de email de expiração para: ${to} - Grupo: "${groupName}"`);
+
       const backendUrl = this.configService.get<string>('BACKEND_URL') || 'https://allgrops.onrender.com';
       const logoUrl = `${backendUrl}/img/e53883e9-1f35-436b-a406-790d9d3d0fd6.png`;
       const subject = '🔔 Seu anúncio expirou - AllGrops';
@@ -149,8 +170,10 @@ export class MailService {
       this.logger.log(`✅ Email de expiração enviado para ${to} - MessageId: ${result.messageId}`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : '';
       this.logger.error(`❌ ERRO ao enviar email de expiração para ${to}: ${msg}`);
-      console.error('Detalhes do erro:', error);
+      this.logger.error(`📋 Stack trace: ${errorStack}`);
+      console.error('Detalhes completos do erro:', error);
     }
   }
 

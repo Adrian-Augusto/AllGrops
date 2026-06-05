@@ -5,6 +5,9 @@ import { CreateGroupDto } from './dto/create-group.dto';
 import { mergeGroupsByFeatureStatus, sortGroupsBySponsorship } from './utils/group-merging';
 import { CategoryService } from './services/category.service';
 import { SubscriptionLimitsService } from '../subscriptions/services/subscription-limits.service';
+import * as fs from 'fs';
+import * as path from 'path';
+import { v4 as uuid } from 'uuid';
 
 @Injectable()
 export class GroupsService {
@@ -35,6 +38,8 @@ export class GroupsService {
       const category = await this.categoryService.findOrCreate(data.category);
       console.log('[GroupsService] Category found/created:', category);
 
+      const photoUrl = this.normalizeGroupPhotoUrl(data.photoUrl);
+
       console.log('[GroupsService] Attempting to create group in database...');
       const group = await this.prisma.group.create({
         data: {
@@ -42,7 +47,7 @@ export class GroupsService {
           description: data.description,
           link: data.link,
           platform: data.platform,
-          photoUrl: data.photoUrl,
+          photoUrl,
           categoryId: category?.id || null,
           createdById: userId,
           status: 'PENDING',
@@ -251,6 +256,43 @@ export class GroupsService {
     };
   }
 
+  private normalizeGroupPhotoUrl(photoUrl: string) {
+    if (!photoUrl?.startsWith('data:image/')) {
+      return photoUrl;
+    }
+
+    const match = photoUrl.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,(.+)$/);
+    if (!match) {
+      throw new BadRequestException('Formato da foto invalido');
+    }
+
+    const mime = match[1];
+    const base64 = match[2];
+    const extensions: Record<string, string> = {
+      'image/jpeg': '.jpg',
+      'image/jpg': '.jpg',
+      'image/png': '.png',
+      'image/webp': '.webp',
+    };
+    const extension = extensions[mime];
+    const buffer = Buffer.from(base64, 'base64');
+    const maxSize = 5 * 1024 * 1024;
+
+    if (buffer.length > maxSize) {
+      throw new BadRequestException('Foto nao pode exceder 5MB');
+    }
+
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'groups');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const fileName = `${uuid()}${extension}`;
+    fs.writeFileSync(path.join(uploadsDir, fileName), buffer);
+
+    return `uploads/groups/${fileName}`;
+  }
+
   async findAll(status?: string, page = 1, limit = 10) {
     const skip = (page - 1) * limit;
     const where: any = {};
@@ -317,6 +359,7 @@ export class GroupsService {
   }
 
   async rejectGroup(groupId: string, adminId: string, reason: string) {
+    console.log('[GroupsService] rejectGroup called - groupId:', groupId, 'reason:', reason);
     const group = await this.prisma.group.findUnique({ where: { id: groupId } });
 
     if (!group) {
@@ -341,6 +384,8 @@ export class GroupsService {
       },
     });
 
+    console.log('[GroupsService] Group rejected, sending email to:', updatedGroup.createdBy.email);
+    
     // Enviar email de rejeição (não quebra a request se falhar)
     this.mailService.sendGroupStatusEmail(
       updatedGroup.createdBy.email,
@@ -384,6 +429,7 @@ export class GroupsService {
   }
 
   async deleteGroup(groupId: string, adminId?: string) {
+    console.log('[GroupsService] deleteGroup called - groupId:', groupId);
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },
       include: { createdBy: { select: { email: true, name: true } } },
@@ -410,6 +456,8 @@ export class GroupsService {
     const deletedGroup = await this.prisma.group.delete({
       where: { id: groupId },
     });
+
+    console.log('[GroupsService] Group deleted, sending email to:', group.createdBy.email);
 
     // Enviar email notificando deletção
     this.mailService.sendGroupDeletedEmail(

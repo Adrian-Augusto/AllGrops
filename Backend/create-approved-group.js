@@ -27,14 +27,6 @@ const links = [
   'https://teams.microsoft.com/cloud'
 ];
 
-const photos = [
-  'https://via.placeholder.com/200/4A90E2/FFFFFF?text=Tech',
-  'https://via.placeholder.com/200/50E3C2/FFFFFF?text=Dev',
-  'https://via.placeholder.com/200/F5A623/FFFFFF?text=Web',
-  'https://via.placeholder.com/200/BD10E0/FFFFFF?text=Cloud',
-  'https://via.placeholder.com/200/417505/FFFFFF?text=AI'
-];
-
 function getRandomElement(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -59,7 +51,7 @@ async function main() {
         description: 'Comunidade ativa e engajada para aprender e compartilhar conhecimento.',
         link: getRandomElement(links),
         platform: getRandomElement(platforms),
-        photoUrl: getRandomElement(photos),
+        photoUrl: '',
         status: 'APPROVED', // ✅ JÁ APROVADO!
         createdById: user.id,
         categoryId: null,
