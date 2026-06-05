@@ -1,9 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class SubscriptionsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(SubscriptionsService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private mailService: MailService,
+  ) {}
 
   async createSubscription(userId: string, groupId: string | undefined, planId: string) {
     // Check for PENDING payment (idempotency - same planId and groupId with status PENDING)
@@ -48,7 +54,11 @@ export class SubscriptionsService {
     // Fetch subscription to get planId for expiration calculation
     const existingSubscription = await this.prisma.subscription.findUnique({
       where: { id: subscriptionId },
-      include: { plan: true },
+      include: { 
+        plan: true,
+        user: { select: { id: true, name: true, email: true } },
+        group: { select: { id: true, name: true } },
+      },
     });
 
     if (!existingSubscription) {
@@ -71,6 +81,31 @@ export class SubscriptionsService {
         expiresAt,
       },
     });
+
+    // Send email notification when subscription is approved
+    if (status === 'APPROVED' && existingSubscription.user?.email) {
+      const subject = existingSubscription.group 
+        ? `✅ Patrocínio aprovado para "${existingSubscription.group.name}"!`
+        : `✅ Seu plano premium foi ativado!`;
+      
+      const message = existingSubscription.group
+        ? `Seu grupo "${existingSubscription.group.name}" agora está patrocinado por ${existingSubscription.plan?.durationDays} dias!`
+        : `Sua assinatura premium está ativa! Você pode patrocinar até ${existingSubscription.plan?.maxSponsoredGroups} grupos.`;
+      
+      try {
+        await this.mailService.sendSubscriptionApprovedEmail(
+          existingSubscription.user.email,
+          subject,
+          message,
+          existingSubscription.plan?.name || 'Seu plano',
+        );
+        this.logger.log(`✅ Email de aprovação enviado para ${existingSubscription.user.email}`);
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.error(`❌ Erro ao enviar email de aprovação de assinatura: ${msg}`);
+        // Continue processing even if email fails
+      }
+    }
 
     return subscription;
   }

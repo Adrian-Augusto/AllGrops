@@ -12,6 +12,7 @@ const subscription_service_1 = require("./subscription.service");
 const subscription_limits_service_1 = require("./services/subscription-limits.service");
 const subscription_controller_1 = require("./subscription.controller");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const mail_module_1 = require("../mail/mail.module");
 let SubscriptionsModule = class SubscriptionsModule {
 };
 exports.SubscriptionsModule = SubscriptionsModule;
@@ -20,5 +21,6 @@ exports.SubscriptionsModule = SubscriptionsModule = __decorate([
         controllers: [subscription_controller_1.SubscriptionsController],
         providers: [subscription_service_1.SubscriptionsService, subscription_limits_service_1.SubscriptionLimitsService, prisma_service_1.PrismaService],
         exports: [subscription_service_1.SubscriptionsService, subscription_limits_service_1.SubscriptionLimitsService],
+        imports: [mail_module_1.MailModule],
     })
 ], SubscriptionsModule);

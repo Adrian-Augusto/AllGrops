@@ -53,17 +53,25 @@ let MailService = MailService_1 = class MailService {
     logger = new common_1.Logger(MailService_1.name);
     constructor(configService) {
         this.configService = configService;
+        const emailUser = this.configService.get('EMAIL_USER');
+        const emailPass = this.configService.get('EMAIL_PASS');
+        if (!emailUser || !emailPass) {
+            this.logger.warn('⚠️ AVISO: Variáveis de email (EMAIL_USER ou EMAIL_PASS) não configuradas!');
+        }
         this.transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: this.configService.get('EMAIL_USER'),
-                pass: this.configService.get('EMAIL_PASS'),
+                user: emailUser,
+                pass: emailPass,
             },
         });
+        this.logger.log(`📧 MailService inicializado com email: ${emailUser || 'NÃO CONFIGURADO'}`);
     }
     async sendGroupStatusEmail(to, groupName, status, reason) {
         try {
+            this.logger.log(`📧 Iniciando envio de email para: ${to} - Status: ${status} - Grupo: "${groupName}"`);
             const { subject, htmlContent } = this.getEmailContent(groupName, status, reason);
+            this.logger.log(`📧 Email subject: ${subject}`);
             const result = await this.transporter.sendMail({
                 from: `AllGrops Team <${this.configService.get('EMAIL_USER')}>`,
                 to,
@@ -74,13 +82,16 @@ let MailService = MailService_1 = class MailService {
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : '';
             this.logger.error(`❌ ERRO ao enviar email para ${to}: ${msg}`);
-            console.error('Detalhes do erro:', error);
+            this.logger.error(`📋 Stack trace: ${errorStack}`);
+            console.error('Detalhes completos do erro:', error);
             // Não relança o erro para não quebrar a request
         }
     }
     async sendGroupDeletedEmail(to, groupName) {
         try {
+            this.logger.log(`📧 Iniciando envio de email de deleção para: ${to} - Grupo: "${groupName}"`);
             const backendUrl = this.configService.get('BACKEND_URL') || 'https://allgrops.onrender.com';
             const logoUrl = `${backendUrl}/img/e53883e9-1f35-436b-a406-790d9d3d0fd6.png`;
             const subject = '🗑️ Seu grupo foi deletado';
@@ -127,12 +138,15 @@ let MailService = MailService_1 = class MailService {
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : '';
             this.logger.error(`❌ ERRO ao enviar email de deleção para ${to}: ${msg}`);
-            console.error('Detalhes do erro:', error);
+            this.logger.error(`📋 Stack trace: ${errorStack}`);
+            console.error('Detalhes completos do erro:', error);
         }
     }
     async sendGroupExpiredEmail(to, groupName) {
         try {
+            this.logger.log(`📧 Iniciando envio de email de expiração para: ${to} - Grupo: "${groupName}"`);
             const backendUrl = this.configService.get('BACKEND_URL') || 'https://allgrops.onrender.com';
             const logoUrl = `${backendUrl}/img/e53883e9-1f35-436b-a406-790d9d3d0fd6.png`;
             const subject = '🔔 Seu anúncio expirou - AllGrops';
@@ -183,8 +197,72 @@ let MailService = MailService_1 = class MailService {
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : '';
             this.logger.error(`❌ ERRO ao enviar email de expiração para ${to}: ${msg}`);
-            console.error('Detalhes do erro:', error);
+            this.logger.error(`📋 Stack trace: ${errorStack}`);
+            console.error('Detalhes completos do erro:', error);
+        }
+    }
+    async sendSubscriptionApprovedEmail(to, subject, message, planName) {
+        try {
+            this.logger.log(`📧 Iniciando envio de email de aprovação de assinatura para: ${to}`);
+            const backendUrl = this.configService.get('BACKEND_URL') || 'https://allgrops.onrender.com';
+            const frontendUrl = this.configService.get('FRONTEND_URL') || 'https://allgrops.onrender.com';
+            const logoUrl = `${backendUrl}/img/e53883e9-1f35-436b-a406-790d9d3d0fd6.png`;
+            const htmlContent = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white;">
+            <img src="${logoUrl}" alt="AllGroups Logo" style="max-width: 200px; margin-bottom: 10px;">
+            <h1 style="margin: 0; font-size: 28px;">✅ AllGroups</h1>
+            <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">Comunidade de Grupos</p>
+          </div>
+
+          <div style="padding: 40px 30px; background-color: white;">
+            <h2 style="color: #667eea; margin-top: 0;">${subject}</h2>
+
+            <p style="font-size: 16px; color: #333; line-height: 1.6;">
+              Olá! 👋
+            </p>
+
+            <p style="font-size: 16px; color: #333; line-height: 1.6;">
+              ${message}
+            </p>
+
+            <div style="background-color: #f0f4ff; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; border-radius: 4px;">
+              <p style="margin: 0; color: #333; font-size: 14px;">
+                <strong>Plano:</strong> ${planName}
+              </p>
+            </div>
+
+            <p style="font-size: 14px; color: #666; line-height: 1.6; margin-top: 30px;">
+              Acesse sua conta para gerenciar seus grupos e patrocínios.
+            </p>
+          </div>
+
+          <div style="background-color: #f9f9f9; padding: 20px 30px; text-align: center; border-top: 1px solid #ddd;">
+            <p style="margin: 0; color: #999; font-size: 12px;">
+              © 2026 AllGroups. Todos os direitos reservados.
+            </p>
+            <p style="margin: 5px 0 0 0; color: #999; font-size: 12px;">
+              <a href="${frontendUrl}" style="color: #667eea; text-decoration: none;">Visite nossa plataforma</a>
+            </p>
+          </div>
+        </div>
+      `;
+            const result = await this.transporter.sendMail({
+                from: `AllGroups Team <${this.configService.get('EMAIL_USER')}>`,
+                to,
+                subject,
+                html: htmlContent,
+            });
+            this.logger.log(`✅ Email de aprovação de assinatura enviado para ${to} - MessageId: ${result.messageId}`);
+        }
+        catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : '';
+            this.logger.error(`❌ ERRO ao enviar email de aprovação de assinatura para ${to}: ${msg}`);
+            this.logger.error(`📋 Stack trace: ${errorStack}`);
+            console.error('Detalhes completos do erro:', error);
         }
     }
     // Método para testar conexão de email

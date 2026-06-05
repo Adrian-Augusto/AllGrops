@@ -177,6 +177,76 @@ export class MailService {
     }
   }
 
+  async sendSubscriptionApprovedEmail(
+    to: string,
+    subject: string,
+    message: string,
+    planName: string,
+  ): Promise<void> {
+    try {
+      this.logger.log(`📧 Iniciando envio de email de aprovação de assinatura para: ${to}`);
+
+      const backendUrl = this.configService.get<string>('BACKEND_URL') || 'https://allgrops.onrender.com';
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://allgrops.onrender.com';
+      const logoUrl = `${backendUrl}/img/e53883e9-1f35-436b-a406-790d9d3d0fd6.png`;
+      const htmlContent = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white;">
+            <img src="${logoUrl}" alt="AllGroups Logo" style="max-width: 200px; margin-bottom: 10px;">
+            <h1 style="margin: 0; font-size: 28px;">✅ AllGroups</h1>
+            <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">Comunidade de Grupos</p>
+          </div>
+
+          <div style="padding: 40px 30px; background-color: white;">
+            <h2 style="color: #667eea; margin-top: 0;">${subject}</h2>
+
+            <p style="font-size: 16px; color: #333; line-height: 1.6;">
+              Olá! 👋
+            </p>
+
+            <p style="font-size: 16px; color: #333; line-height: 1.6;">
+              ${message}
+            </p>
+
+            <div style="background-color: #f0f4ff; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; border-radius: 4px;">
+              <p style="margin: 0; color: #333; font-size: 14px;">
+                <strong>Plano:</strong> ${planName}
+              </p>
+            </div>
+
+            <p style="font-size: 14px; color: #666; line-height: 1.6; margin-top: 30px;">
+              Acesse sua conta para gerenciar seus grupos e patrocínios.
+            </p>
+          </div>
+
+          <div style="background-color: #f9f9f9; padding: 20px 30px; text-align: center; border-top: 1px solid #ddd;">
+            <p style="margin: 0; color: #999; font-size: 12px;">
+              © 2026 AllGroups. Todos os direitos reservados.
+            </p>
+            <p style="margin: 5px 0 0 0; color: #999; font-size: 12px;">
+              <a href="${frontendUrl}" style="color: #667eea; text-decoration: none;">Visite nossa plataforma</a>
+            </p>
+          </div>
+        </div>
+      `;
+
+      const result = await this.transporter.sendMail({
+        from: `AllGroups Team <${this.configService.get<string>('EMAIL_USER')}>`,
+        to,
+        subject,
+        html: htmlContent,
+      });
+
+      this.logger.log(`✅ Email de aprovação de assinatura enviado para ${to} - MessageId: ${result.messageId}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : '';
+      this.logger.error(`❌ ERRO ao enviar email de aprovação de assinatura para ${to}: ${msg}`);
+      this.logger.error(`📋 Stack trace: ${errorStack}`);
+      console.error('Detalhes completos do erro:', error);
+    }
+  }
+
   // Método para testar conexão de email
   async testEmailConnection(): Promise<{ success: boolean; message: string }> {
     try {

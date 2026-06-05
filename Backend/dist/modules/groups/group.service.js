@@ -360,6 +360,7 @@ let GroupsService = GroupsService_1 = class GroupsService {
         return updatedGroup;
     }
     async rejectGroup(groupId, adminId, reason) {
+        console.log('[GroupsService] rejectGroup called - groupId:', groupId, 'reason:', reason);
         const group = await this.prisma.group.findUnique({ where: { id: groupId } });
         if (!group) {
             throw new common_1.NotFoundException('Grupo não encontrado');
@@ -380,6 +381,7 @@ let GroupsService = GroupsService_1 = class GroupsService {
                 reviewedBy: { select: { id: true, name: true, email: true } },
             },
         });
+        console.log('[GroupsService] Group rejected, sending email to:', updatedGroup.createdBy.email);
         // Enviar email de rejeição (não quebra a request se falhar)
         this.mailService.sendGroupStatusEmail(updatedGroup.createdBy.email, updatedGroup.name, 'REJECTED', reason).catch((error) => {
             const msg = error instanceof Error ? error.message : String(error);
@@ -412,6 +414,7 @@ let GroupsService = GroupsService_1 = class GroupsService {
         };
     }
     async deleteGroup(groupId, adminId) {
+        console.log('[GroupsService] deleteGroup called - groupId:', groupId);
         const group = await this.prisma.group.findUnique({
             where: { id: groupId },
             include: { createdBy: { select: { email: true, name: true } } },
@@ -433,6 +436,7 @@ let GroupsService = GroupsService_1 = class GroupsService {
         const deletedGroup = await this.prisma.group.delete({
             where: { id: groupId },
         });
+        console.log('[GroupsService] Group deleted, sending email to:', group.createdBy.email);
         // Enviar email notificando deletção
         this.mailService.sendGroupDeletedEmail(group.createdBy.email, group.name).catch((error) => {
             const msg = error instanceof Error ? error.message : String(error);
