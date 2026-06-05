@@ -19,10 +19,10 @@ class CreatePaymentDto {
 exports.CreatePaymentDto = CreatePaymentDto;
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'ID do plano premium (todos os seus grupos ficarão destacados)',
-        example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+        description: 'ID do plano premium (todos os seus grupos ficarão destacados) - pode ser UUID ou slug',
+        example: 'three-days',
     }),
-    (0, class_validator_1.IsUUID)(),
+    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreatePaymentDto.prototype, "planId", void 0);

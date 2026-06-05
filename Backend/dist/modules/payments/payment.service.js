@@ -43,13 +43,16 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
         this.paymentClient = new mercadopago_1.Payment(config);
     }
     async createPreference({ userId, planId, idempotencyKey, }) {
+        console.log('[PaymentsService] createPreference called - userId:', userId, 'planId:', planId, 'idempotencyKey:', idempotencyKey);
         try {
             // Generate or validate idempotency key
             const key = idempotencyKey || this.paymentRepository.generateIdempotencyKey(userId, planId);
+            console.log('[PaymentsService] Idempotency key:', key);
             // Check for duplicate request
             const existingPayment = await this.paymentRepository.findByIdempotencyKey(key);
             if (existingPayment) {
                 this.logger.log(`Duplicate payment request with key: ${key}`);
+                console.log('[PaymentsService] Returning cached payment:', existingPayment.id);
                 // Return cached result if already exists
                 return {
                     init_point: existingPayment.subscription?.paymentId || undefined,
@@ -57,28 +60,52 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
                     status: existingPayment.status,
                 };
             }
-            // Validate plan exists and is active
-            const plan = await this.prisma.plan.findUnique({
-                where: { id: planId },
-            });
+            // Validate plan exists and is active (accepts UUID or slug)
+            console.log('[PaymentsService] Looking up plan:', planId);
+            let plan;
+            // Try to find by UUID first, then by name/slug
+            try {
+                plan = await this.prisma.plan.findUnique({
+                    where: { id: planId },
+                });
+            }
+            catch (e) {
+                // If not a valid UUID, try to find by name
+                plan = await this.prisma.plan.findFirst({
+                    where: {
+                        name: {
+                            equals: planId,
+                            mode: 'insensitive',
+                        },
+                    },
+                });
+            }
+            console.log('[PaymentsService] Plan found:', plan ? plan.id : 'NOT FOUND');
             if (!plan || !plan.isActive) {
+                console.error('[PaymentsService] Plan not found or inactive:', planId);
                 throw new common_1.BadRequestException('Plano não encontrado ou inativo');
             }
             // Create pending subscription (premium plan for all user groups)
+            console.log('[PaymentsService] Creating subscription...');
             const subscription = await this.subscriptionsService.createSubscription(userId, '', // Empty groupId for premium subscription
             planId);
+            console.log('[PaymentsService] Subscription created:', subscription.id);
             // Create payment tracking record
             const externalReference = `${userId}:${planId}:${subscription.id}`;
+            console.log('[PaymentsService] Creating payment record...');
             const paymentRecord = await this.paymentRepository.createPayment({
                 subscriptionId: subscription.id,
                 idempotencyKey: key,
                 externalReference,
             });
             if (!paymentRecord) {
+                console.error('[PaymentsService] Payment record creation failed');
                 throw new common_1.ConflictException('Payment already being processed for this request');
             }
+            console.log('[PaymentsService] Payment record created:', paymentRecord.id);
             // Create Mercado Pago preference
             const frontendUrl = process.env.FRONTEND_URL || 'https://allgrops.onrender.com';
+            console.log('[PaymentsService] Creating Mercado Pago preference...');
             const preference = {
                 items: [
                     {
@@ -103,6 +130,7 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
                 },
             };
             const response = await this.preferenceClient.create({ body: preference });
+            console.log('[PaymentsService] Mercado Pago preference created:', response.id);
             // Save preference ID to subscription
             await this.prisma.subscription.update({
                 where: { id: subscription.id },
@@ -118,6 +146,7 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : '';
+            console.error('[PaymentsService] Error creating preference:', errorMessage);
             this.logger.error(`Error creating preference: ${errorMessage}`, errorStack);
             throw error;
         }

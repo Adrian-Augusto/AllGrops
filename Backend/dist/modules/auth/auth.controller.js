@@ -114,7 +114,7 @@ let AuthController = AuthController_1 = class AuthController {
         res.cookie('accessToken', result.accessToken, {
             httpOnly: true, // Prevents XSS attacks
             secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-            sameSite: 'lax', // CSRF protection
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Allow cross-site cookies in production
             maxAge: 3600000, // 1 hour
             path: '/',
         });
@@ -124,13 +124,15 @@ let AuthController = AuthController_1 = class AuthController {
         // Este endpoint inicia o fluxo OAuth do Google
         // O GoogleAuthGuard redireciona para https://accounts.google.com/o/oauth2/v2/auth
     }
-    async googleCallback(req, res, code, error) {
+    async googleCallback(req, res, code, error, state) {
+        // Definir fallback seguro para a URL de produção
+        const fallbackUrl = this.configService.get('FRONTEND_URL') || 'https://front-end-flow-group.vercel.app';
+        let targetRedirectUrl = `${fallbackUrl}/auth/callback`;
         try {
             // Tratamento de erros do Google OAuth
             if (error) {
                 this.logger.warn(`Google OAuth error: ${error}`);
-                const frontendUrl = this.configService.get('FRONTEND_URL') || 'https://allgrops.onrender.com';
-                return res.redirect(`${frontendUrl}/login?error=${error}`);
+                return res.redirect(`${fallbackUrl}/login?error=${error}`);
             }
             if (!code && !req.user) {
                 throw new common_1.BadRequestException('Authorization code or user not provided');
@@ -143,30 +145,81 @@ let AuthController = AuthController_1 = class AuthController {
             }
             // Criar ou atualizar usuário no banco de dados
             const result = await this.authService.googleLogin(userProfile);
-            // Setar o token em cookie HttpOnly (mais seguro)
-            res.cookie('accessToken', result.accessToken, {
-                httpOnly: true, // Prevents XSS attacks
-                secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-                sameSite: 'lax', // CSRF protection
-                maxAge: 3600000, // 1 hour
+            // Validação rigorosa do parâmetro state para evitar vulnerabilidade de Open Redirect
+            if (state && typeof state === 'string' && state.length < 2048) {
+                try {
+                    const parsed = JSON.parse(state);
+                    if (parsed && typeof parsed.r === 'string') {
+                        const parsedUrl = new URL(parsed.r);
+                        // 1. Protocolo estritamente http ou https (evita javascript:, etc.)
+                        const hasSafeProtocol = parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+                        // 2. Hostname estritamente na whitelist ou correspondente ao padrão da Vercel
+                        const isWhitelisted = [
+                            'localhost',
+                            '127.0.0.1',
+                            'front-end-flow-group.vercel.app'
+                        ].some(domain => parsedUrl.hostname === domain || parsedUrl.hostname.endsWith('.' + domain));
+                        const isVercelPreview = /^front-end-flow-group(-[a-z0-9]+)*(-adrian-augustos-projects)?\.vercel\.app$/.test(parsedUrl.hostname);
+                        if (hasSafeProtocol && (isWhitelisted || isVercelPreview)) {
+                            // Se passar em todas as validações, reconstrói o path final de callback do frontend com a origem validada
+                            targetRedirectUrl = `${parsedUrl.origin}/auth/callback`;
+                        }
+                        else {
+                            this.logger.warn(`Open Redirect detectado e bloqueado para a URL: ${parsed.r}`);
+                        }
+                    }
+                }
+                catch (e) {
+                    const errorMsg = e instanceof Error ? e.message : String(e);
+                    this.logger.warn(`Falha ao ler parâmetro state do OAuth: ${errorMsg}`);
+                }
+            }
+            // Retornar o token JWT diretamente na URL para o frontend armazenar
+            // O token será salvo em sessionStorage pelo frontend
+            const token = result.accessToken;
+            // Set HttpOnly cookie (para requisições que não enviam Bearer token)
+            res.cookie('accessToken', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                maxAge: 3600000, // 1 hora
                 path: '/',
             });
-            // Redirecionar sem token na URL
-            const frontendUrl = this.configService.get('FRONTEND_URL') || 'https://allgrops.onrender.com';
-            return res.redirect(`${frontendUrl}/auth/callback`);
+            // Redirecionar para o frontend com o token na URL
+            return res.redirect(`${targetRedirectUrl}?token=${token}`);
         }
         catch (error) {
-            this.logger.error('Google OAuth callback error');
-            const frontendUrl = this.configService.get('FRONTEND_URL') || 'https://allgrops.onrender.com';
-            return res.redirect(`${frontendUrl}/login?error=auth_failed`);
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Google OAuth callback error: ${errorMsg}`, error instanceof Error ? error.stack : '');
+            return res.redirect(`${fallbackUrl}/login?error=auth_failed`);
         }
     }
+    async exchangeCode(code, res) {
+        if (!code) {
+            throw new common_1.BadRequestException('Código de autorização é obrigatório');
+        }
+        // Valida e consome o código temporário
+        const result = this.authService.exchangeTempCode(code);
+        // Salva o token em cookie HttpOnly para compatibilidade/backup
+        res.cookie('accessToken', result.accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 3600000, // 1 hora
+            path: '/',
+        });
+        return res.json(result);
+    }
     async getGoogleProfile(req) {
-        // Returns current user profile if authenticated
         if (req.user) {
+            // Extrai o token do header de autorização ou do cookie de forma segura
+            const token = req.headers.authorization?.split(' ')[1] || req.cookies?.accessToken;
             return {
                 id: req.user.id,
                 email: req.user.email,
+                name: req.user.name,
+                role: req.user.role,
+                token: token || null,
             };
         }
         return null;
@@ -175,7 +228,7 @@ let AuthController = AuthController_1 = class AuthController {
         res.clearCookie('accessToken', {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             path: '/',
         });
         return res.json({ message: 'Logged out successfully' });
@@ -214,10 +267,19 @@ __decorate([
     __param(1, (0, common_1.Res)()),
     __param(2, (0, common_1.Query)('code')),
     __param(3, (0, common_1.Query)('error')),
+    __param(4, (0, common_1.Query)('state')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object, String, String]),
+    __metadata("design:paramtypes", [Object, Object, String, String, String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "googleCallback", null);
+__decorate([
+    (0, common_1.Post)('exchange-code'),
+    __param(0, (0, common_1.Body)('code')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "exchangeCode", null);
 __decorate([
     (0, common_1.Get)('google/profile'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

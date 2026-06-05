@@ -42,6 +42,7 @@ let AdminService = AdminService_1 = class AdminService {
         };
     }
     async getGroups(status) {
+        console.log('[AdminService] getGroups called - status:', status);
         const where = {};
         if (status) {
             const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED'];
@@ -51,6 +52,7 @@ let AdminService = AdminService_1 = class AdminService {
             }
             where.status = normalizedStatus;
         }
+        console.log('[AdminService] Querying groups with where:', where);
         const groups = await this.prisma.group.findMany({
             where,
             include: {
@@ -59,6 +61,7 @@ let AdminService = AdminService_1 = class AdminService {
                 _count: { select: { memberships: true } },
             },
         });
+        console.log('[AdminService] Found groups:', groups.length);
         return {
             data: groups,
             total: groups.length,

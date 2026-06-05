@@ -32,6 +32,7 @@ let GroupsService = GroupsService_1 = class GroupsService {
     }
     // USER ENDPOINTS
     async createGroup(userId, data) {
+        console.log('[GroupsService] createGroup called - userId:', userId, 'data:', data);
         if (!userId || !data.title) {
             throw new common_1.BadRequestException('Missing required fields: userId, title');
         }
@@ -40,6 +41,8 @@ let GroupsService = GroupsService_1 = class GroupsService {
             const sponsorshipInfo = await this.subscriptionLimitsService.canSponsorGroup(userId);
             // Buscar ou criar categoria automaticamente
             const category = await this.categoryService.findOrCreate(data.category);
+            console.log('[GroupsService] Category found/created:', category);
+            console.log('[GroupsService] Attempting to create group in database...');
             const group = await this.prisma.group.create({
                 data: {
                     name: data.title,
@@ -56,12 +59,14 @@ let GroupsService = GroupsService_1 = class GroupsService {
                     category: true,
                 },
             });
+            console.log('[GroupsService] Group created successfully:', group.id, group.name);
             return {
                 ...group,
                 sponsorshipInfo,
             };
         }
         catch (error) {
+            console.error('[GroupsService] Error creating group:', error);
             this.logger.error('Erro ao criar grupo:', error);
             if (error instanceof common_1.BadRequestException) {
                 throw error;
@@ -208,8 +213,9 @@ let GroupsService = GroupsService_1 = class GroupsService {
     }
     // ADMIN ENDPOINTS
     async findPending(page = 1, limit = 10) {
+        console.log('[GroupsService] findPending called - page:', page, 'limit:', limit);
         const skip = (page - 1) * limit;
-        return this.prisma.group.findMany({
+        const groups = await this.prisma.group.findMany({
             where: { status: 'PENDING' },
             include: {
                 createdBy: { select: { id: true, name: true, email: true } },
@@ -220,6 +226,8 @@ let GroupsService = GroupsService_1 = class GroupsService {
             take: limit,
             orderBy: { createdAt: 'asc' },
         });
+        console.log('[GroupsService] Found pending groups:', groups.length);
+        return groups;
     }
     async findAll(status, page = 1, limit = 10) {
         const skip = (page - 1) * limit;

@@ -55,16 +55,33 @@ const config_1 = require("@nestjs/config");
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
 const axios_1 = __importDefault(require("axios"));
+const crypto_1 = require("crypto");
+/**
+ * Authentication Service
+ *
+ * Handles:
+ * - JWT generation with issuer/audience claims
+ * - Google OAuth token exchange and validation
+ * - User creation/update with secure profile handling
+ * - Temporary authorization codes (CSRF protection)
+ */
 let AuthService = AuthService_1 = class AuthService {
     prisma;
     jwtService;
     configService;
     logger = new common_1.Logger(AuthService_1.name);
     isProduction = process.env.NODE_ENV === 'production';
+    tempCodes = new Map();
+    jwtIssuer;
+    jwtAudience;
+    jwtExpiresIn;
     constructor(prisma, jwtService, configService) {
         this.prisma = prisma;
         this.jwtService = jwtService;
         this.configService = configService;
+        this.jwtIssuer = configService.get('JWT_ISSUER') || 'AllGrops-API';
+        this.jwtAudience = configService.get('JWT_AUDIENCE') || 'AllGrops-Frontend';
+        this.jwtExpiresIn = configService.get('JWT_EXPIRES_IN') || '1h';
     }
     async register(name, email, password) {
         // Validate email format
@@ -130,12 +147,12 @@ let AuthService = AuthService_1 = class AuthService {
                 data: { role: 'ADMIN' },
             });
         }
-        const payload = { sub: user.id, email: user.email, role: user.role };
+        const accessToken = this.generateJwt({ sub: user.id, email: user.email, role: user.role });
         if (!this.isProduction) {
             this.logger.log(`User logged in: ${user.id}`);
         }
         return {
-            accessToken: this.jwtService.sign(payload),
+            accessToken,
             user: {
                 id: user.id,
                 name: user.name,
@@ -146,10 +163,14 @@ let AuthService = AuthService_1 = class AuthService {
         };
     }
     async googleLogin(userProfile) {
-        const { googleId, email, name, profileImage } = userProfile;
+        const { googleId, email, name, profileImage, emailVerified } = userProfile;
         // Validate required fields
         if (!googleId || !email) {
             throw new common_1.UnauthorizedException('Missing required profile data from Google');
+        }
+        // Security: Ensure email is verified by Google
+        if (!emailVerified) {
+            throw new common_1.UnauthorizedException('Email must be verified by Google');
         }
         const defaultAdminEmail = (this.configService.get('DEFAULT_ADMIN_EMAIL') || this.configService.get('EMAIL_USER'))?.toLowerCase();
         const isSpecialAdmin = defaultAdminEmail && email.toLowerCase() === defaultAdminEmail;
@@ -181,9 +202,13 @@ let AuthService = AuthService_1 = class AuthService {
                     },
                 });
             }
-            const payload = { sub: existingByGoogleId.id, email: existingByGoogleId.email, role: existingByGoogleId.role };
+            const accessToken = this.generateJwt({
+                sub: existingByGoogleId.id,
+                email: existingByGoogleId.email,
+                role: existingByGoogleId.role,
+            });
             return {
-                accessToken: this.jwtService.sign(payload),
+                accessToken,
                 user: {
                     id: existingByGoogleId.id,
                     name: existingByGoogleId.name,
@@ -255,12 +280,16 @@ let AuthService = AuthService_1 = class AuthService {
                 },
             });
         }
-        const payload = { sub: user.id, email: user.email, role: user.role };
+        const accessToken = this.generateJwt({
+            sub: user.id,
+            email: user.email,
+            role: user.role,
+        });
         if (!this.isProduction) {
             this.logger.log(`Google user logged in: ${user.id}`);
         }
         return {
-            accessToken: this.jwtService.sign(payload),
+            accessToken,
             user: {
                 id: user.id,
                 name: user.name,
@@ -270,6 +299,24 @@ let AuthService = AuthService_1 = class AuthService {
             },
             needsTermsAcceptance: !user.termsAccepted,
         };
+    }
+    /**
+     * Generate JWT with issuer and audience claims
+     * Standard claims: sub (subject), email, role, iss (issuer), aud (audience)
+     */
+    generateJwt(payload) {
+        const jwtPayload = {
+            sub: payload.sub || '',
+            email: payload.email || '',
+            role: payload.role || 'COMMON',
+            iss: this.jwtIssuer,
+            aud: this.jwtAudience,
+        };
+        // Note: issuer and audience should only be in payload, not in sign options
+        // to avoid "The payload already has an 'aud' property" error
+        return this.jwtService.sign(jwtPayload, {
+            expiresIn: this.jwtExpiresIn,
+        });
     }
     async changePassword(userId, currentPassword, newPassword) {
         if (!userId) {
@@ -334,6 +381,56 @@ let AuthService = AuthService_1 = class AuthService {
             // Se falhar, tenta retornar a URL original do Google
             return imageUrl;
         }
+    }
+    /**
+     * Generate temporary one-time authorization code
+     * Expires in 3 minutes with nonce for CSRF protection
+     *
+     * Flow:
+     * 1. OAuth callback generates code
+     * 2. Frontend exchanges code for JWT (prevents token in URL)
+     * 3. Code is invalidated after first use (one-time)
+     */
+    generateTempCode(loginResult, nonce) {
+        const code = (0, crypto_1.randomBytes)(32).toString('hex');
+        const expiresAt = Date.now() + 3 * 60 * 1000; // 3 minutos
+        this.tempCodes.set(code, { result: loginResult, expiresAt, nonce });
+        // Auto-cleanup after 3 minutes
+        setTimeout(() => {
+            this.tempCodes.delete(code);
+        }, 3 * 60 * 1000);
+        if (!this.isProduction) {
+            this.logger.debug(`Temp code generated, expires at ${new Date(expiresAt).toISOString()}`);
+        }
+        return code;
+    }
+    /**
+     * Exchange temporary authorization code for JWT
+     * Security:
+     * - One-time use (code deleted immediately)
+     * - Expiration validation
+     * - Optional nonce verification for CSRF protection
+     */
+    exchangeTempCode(code, nonce) {
+        if (!code || typeof code !== 'string') {
+            throw new common_1.BadRequestException('Invalid or missing authorization code');
+        }
+        const data = this.tempCodes.get(code);
+        if (!data) {
+            this.logger.warn(`Attempt to exchange invalid/consumed/expired code`);
+            throw new common_1.UnauthorizedException('Authorization code is invalid, already used, or expired');
+        }
+        // Invalidate immediately (one-time use)
+        this.tempCodes.delete(code);
+        if (Date.now() > data.expiresAt) {
+            throw new common_1.UnauthorizedException('Authorization code has expired');
+        }
+        // Validate nonce if provided (CSRF protection)
+        if (nonce && data.nonce && data.nonce !== nonce) {
+            this.logger.warn(`Nonce mismatch: ${data.nonce} !== ${nonce}`);
+            throw new common_1.UnauthorizedException('CSRF validation failed');
+        }
+        return data.result;
     }
 };
 exports.AuthService = AuthService;

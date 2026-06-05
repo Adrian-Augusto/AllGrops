@@ -79,6 +79,7 @@ let TermsService = class TermsService {
      * Accept terms for a user
      */
     async acceptTerms(userId, dto) {
+        console.log('[TermsService] acceptTerms called for userId:', userId, 'dto:', dto);
         // Validate that user accepted the checkbox
         if (!dto.accepted) {
             throw new common_1.BadRequestException('Você deve aceitar os termos para continuar');
@@ -87,46 +88,63 @@ let TermsService = class TermsService {
         const user = await this.prisma.user.findUnique({
             where: { id: userId },
         });
+        console.log('[TermsService] User found:', user ? user.id : 'NOT FOUND');
+        console.log('[TermsService] User data:', user);
         if (!user) {
             throw new common_1.UnauthorizedException('Usuário não encontrado');
         }
+        console.log('[TermsService] Attempting to update user...');
         // Update user to mark terms as accepted
-        const updatedUser = await this.prisma.user.update({
-            where: { id: userId },
-            data: {
-                termsAccepted: true,
-                termsVersion: CURRENT_TERMS_VERSION,
-                termsAcceptedAt: new Date(),
-            },
-        });
-        return {
-            message: 'Termos aceitos com sucesso',
-            user: {
-                id: updatedUser.id,
-                email: updatedUser.email,
-                name: updatedUser.name,
-                termsAccepted: updatedUser.termsAccepted,
-                termsVersion: updatedUser.termsVersion,
-            },
-        };
+        try {
+            const updatedUser = await this.prisma.user.update({
+                where: { id: userId },
+                data: {
+                    termsAccepted: true,
+                    termsVersion: CURRENT_TERMS_VERSION,
+                    termsAcceptedAt: new Date(),
+                },
+            });
+            console.log('[TermsService] User updated successfully:', updatedUser.id, 'termsAccepted:', updatedUser.termsAccepted);
+            console.log('[TermsService] Updated user data:', updatedUser);
+            return {
+                message: 'Termos aceitos com sucesso',
+                user: {
+                    id: updatedUser.id,
+                    email: updatedUser.email,
+                    name: updatedUser.name,
+                    termsAccepted: updatedUser.termsAccepted,
+                    termsVersion: updatedUser.termsVersion,
+                },
+            };
+        }
+        catch (error) {
+            console.error('[TermsService] Error updating user:', error);
+            throw error;
+        }
     }
     /**
      * Check if user needs to accept new terms version
      */
     async checkTermsStatus(userId) {
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
-        });
-        if (!user) {
-            throw new common_1.UnauthorizedException('Usuário não encontrado');
+        try {
+            const user = await this.prisma.user.findUnique({
+                where: { id: userId },
+            });
+            if (!user) {
+                throw new common_1.UnauthorizedException('Usuário não encontrado');
+            }
+            const needsUpdate = !user.termsAccepted || user.termsVersion < CURRENT_TERMS_VERSION;
+            return {
+                termsAccepted: user.termsAccepted || false,
+                userVersion: user.termsVersion || 0,
+                currentVersion: CURRENT_TERMS_VERSION,
+                needsUpdate,
+            };
         }
-        const needsUpdate = !user.termsAccepted || user.termsVersion < CURRENT_TERMS_VERSION;
-        return {
-            termsAccepted: user.termsAccepted,
-            userVersion: user.termsVersion,
-            currentVersion: CURRENT_TERMS_VERSION,
-            needsUpdate,
-        };
+        catch (error) {
+            console.error('Error checking terms status:', error);
+            throw error;
+        }
     }
 };
 exports.TermsService = TermsService;

@@ -14,10 +14,17 @@ const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 let PrismaService = class PrismaService extends client_1.PrismaClient {
     constructor() {
-        super();
+        super({
+            log: ['query', 'info', 'warn', 'error'],
+        });
+    }
+    async onModuleInit() {
+        await this.$connect();
+        console.log('✅ Prisma connected to database');
     }
     async onModuleDestroy() {
         await this.$disconnect();
+        console.log('✅ Prisma disconnected from database');
     }
 };
 exports.PrismaService = PrismaService;
