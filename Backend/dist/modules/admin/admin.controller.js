@@ -19,6 +19,7 @@ const admin_service_1 = require("./admin.service");
 const admin_guard_1 = require("./admin.guard");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const featured_groups_service_1 = require("../groups/featured-groups.service");
+const current_user_decorator_1 = require("../auth/current-user.decorator");
 let AdminController = class AdminController {
     adminService;
     featuredGroupsService;
@@ -35,11 +36,11 @@ let AdminController = class AdminController {
     async getGroups(status) {
         return this.adminService.getGroups(status);
     }
-    async approveGroup(id) {
-        return this.adminService.approveGroup(id);
+    async approveGroup(id, admin) {
+        return this.adminService.approveGroup(id, admin.id);
     }
-    async rejectGroup(id) {
-        return this.adminService.rejectGroup(id);
+    async rejectGroup(id, reason, admin) {
+        return this.adminService.rejectGroup(id, admin.id, reason);
     }
     async rotateFeaturedGroups() {
         return this.featuredGroupsService.rotateFeaturedGroups();
@@ -86,8 +87,9 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'Approve a group' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Group approved successfully' }),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "approveGroup", null);
 __decorate([
@@ -96,8 +98,10 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'Reject a group' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Group rejected successfully' }),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)('reason')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "rejectGroup", null);
 __decorate([

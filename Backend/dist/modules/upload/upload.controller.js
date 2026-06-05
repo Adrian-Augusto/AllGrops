@@ -57,9 +57,14 @@ let UploadController = class UploadController {
         if (!file) {
             throw new common_1.BadRequestException('Nenhuma foto foi enviada');
         }
-        // Validar tipo de arquivo
-        const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
-        if (!allowedMimes.includes(file.mimetype)) {
+        // Validar tipo de arquivo e obter extensão correspondente de forma segura
+        const allowedMimes = {
+            'image/jpeg': '.jpg',
+            'image/png': '.png',
+            'image/webp': '.webp',
+        };
+        const fileExt = allowedMimes[file.mimetype];
+        if (!fileExt) {
             throw new common_1.BadRequestException('Apenas JPG, PNG e WebP são permitidos');
         }
         // Validar tamanho (máx 5MB)
@@ -67,8 +72,7 @@ let UploadController = class UploadController {
         if (file.size > maxSize) {
             throw new common_1.BadRequestException('Foto não pode exceder 5MB');
         }
-        // Gerar nome único
-        const fileExt = path.extname(file.originalname);
+        // Gerar nome único usando a extensão segura derivada do mimetype
         const fileName = `${(0, uuid_1.v4)()}${fileExt}`;
         const filePath = path.join(process.cwd(), 'uploads', 'groups', fileName);
         // Criar diretório se não existir

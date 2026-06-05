@@ -13,11 +13,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const group_service_1 = require("../groups/group.service");
 let AdminService = AdminService_1 = class AdminService {
     prisma;
+    groupsService;
     logger = new common_1.Logger(AdminService_1.name);
-    constructor(prisma) {
+    constructor(prisma, groupsService) {
         this.prisma = prisma;
+        this.groupsService = groupsService;
     }
     async getStats() {
         const totalUsers = await this.prisma.user.count();
@@ -67,52 +70,17 @@ let AdminService = AdminService_1 = class AdminService {
             total: groups.length,
         };
     }
-    async approveGroup(groupId) {
+    async approveGroup(groupId, adminId) {
         if (!groupId) {
             throw new common_1.BadRequestException('Group ID is required');
         }
-        const group = await this.prisma.group.findUnique({
-            where: { id: groupId },
-        });
-        if (!group) {
-            throw new common_1.NotFoundException('Group not found');
-        }
-        if (group.status !== 'PENDING') {
-            throw new common_1.BadRequestException(`Cannot approve group with status: ${group.status}`);
-        }
-        return this.prisma.group.update({
-            where: { id: groupId },
-            data: { status: 'APPROVED' },
-            include: {
-                createdBy: { select: { id: true, name: true, email: true } },
-                category: true,
-            },
-        });
+        return this.groupsService.approveGroup(groupId, adminId);
     }
-    async rejectGroup(groupId, rejectionReason) {
+    async rejectGroup(groupId, adminId, rejectionReason) {
         if (!groupId) {
             throw new common_1.BadRequestException('Group ID is required');
         }
-        const group = await this.prisma.group.findUnique({
-            where: { id: groupId },
-        });
-        if (!group) {
-            throw new common_1.NotFoundException('Group not found');
-        }
-        if (group.status !== 'PENDING') {
-            throw new common_1.BadRequestException(`Cannot reject group with status: ${group.status}`);
-        }
-        return this.prisma.group.update({
-            where: { id: groupId },
-            data: {
-                status: 'REJECTED',
-                rejectionReason: rejectionReason || 'Rejected by admin',
-            },
-            include: {
-                createdBy: { select: { id: true, name: true, email: true } },
-                category: true,
-            },
-        });
+        return this.groupsService.rejectGroup(groupId, adminId, rejectionReason || 'Rejected by admin');
     }
     async getGroupStatistics() {
         const [pending, approved, rejected, total] = await Promise.all([
@@ -148,5 +116,6 @@ let AdminService = AdminService_1 = class AdminService {
 exports.AdminService = AdminService;
 exports.AdminService = AdminService = AdminService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        group_service_1.GroupsService])
 ], AdminService);

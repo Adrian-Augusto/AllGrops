@@ -63,21 +63,25 @@ let PostsService = PostsService_1 = class PostsService {
         }
         let photoPath = null;
         if (data.photo) {
-            // Validar tipo de arquivo
-            const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
-            if (!allowedMimes.includes(data.photo.mimetype)) {
-                throw new Error('Apenas JPG, PNG e WebP são permitidos');
+            // Validar tipo de arquivo e obter extensão de forma segura
+            const allowedMimes = {
+                'image/jpeg': '.jpg',
+                'image/png': '.png',
+                'image/webp': '.webp',
+            };
+            const fileExt = allowedMimes[data.photo.mimetype];
+            if (!fileExt) {
+                throw new common_1.BadRequestException('Apenas JPG, PNG e WebP são permitidos');
             }
             // Validar tamanho (máx 5MB)
             const maxSize = 5 * 1024 * 1024;
             if (data.photo.size > maxSize) {
-                throw new Error('Foto não pode exceder 5MB');
+                throw new common_1.BadRequestException('Foto não pode exceder 5MB');
             }
             const uploadsDir = path.join(process.cwd(), 'uploads', 'posts');
             if (!fs.existsSync(uploadsDir)) {
                 fs.mkdirSync(uploadsDir, { recursive: true });
             }
-            const fileExt = path.extname(data.photo.originalname);
             const fileName = `${(0, uuid_1.v4)()}${fileExt}`;
             const filePath = path.join(uploadsDir, fileName);
             fs.writeFileSync(filePath, data.photo.buffer);

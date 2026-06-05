@@ -21,17 +21,26 @@ export class SchedulerService {
     try {
       // Find all active subscriptions that have expired
       const expiredSubscriptions = await this.prisma.subscription.findMany({
+        select: {
+          id: true,
+          userId: true,
+          groupId: true,
+          planId: true,
+          status: true,
+          isActive: true,
+          expiresAt: true,
+          paymentId: true,
+          createdAt: true,
+          user: { select: { id: true, name: true, email: true } },
+          plan: true,
+          group: { select: { id: true, name: true } },
+        },
         where: {
           isActive: true,
           status: 'APPROVED',
           expiresAt: {
             lt: now,
           },
-        },
-        include: {
-          user: { select: { id: true, name: true, email: true } },
-          plan: true,
-          group: { select: { id: true, name: true } },
         },
       });
 
@@ -81,6 +90,10 @@ export class SchedulerService {
     try {
       // Find all active subscriptions that have expired
       const expiredSubscriptions = await this.prisma.subscription.findMany({
+        select: {
+          id: true,
+          groupId: true,
+        },
         where: {
           isActive: true,
           status: 'APPROVED',

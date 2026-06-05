@@ -11,8 +11,8 @@
     "db:push": "prisma db push --accept-data-loss",
     "build": "npm run prisma:generate && tsc -p tsconfig.json",
     "build:prod": "npm run prisma:generate && npm run db:push && tsc -p tsconfig.json",
-    "start": "node dist/main.js",
-    "start:prod": "node dist/main.js",
+    "start": "npm run migrate:deploy && node dist/main.js",
+    "start:prod": "npm run migrate:deploy && node dist/main.js",
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts"
   },
   "license": "ISC",

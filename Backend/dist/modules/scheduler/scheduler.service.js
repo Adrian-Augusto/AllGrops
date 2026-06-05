@@ -29,17 +29,26 @@ let SchedulerService = SchedulerService_1 = class SchedulerService {
         try {
             // Find all active subscriptions that have expired
             const expiredSubscriptions = await this.prisma.subscription.findMany({
+                select: {
+                    id: true,
+                    userId: true,
+                    groupId: true,
+                    planId: true,
+                    status: true,
+                    isActive: true,
+                    expiresAt: true,
+                    paymentId: true,
+                    createdAt: true,
+                    user: { select: { id: true, name: true, email: true } },
+                    plan: true,
+                    group: { select: { id: true, name: true } },
+                },
                 where: {
                     isActive: true,
                     status: 'APPROVED',
                     expiresAt: {
                         lt: now,
                     },
-                },
-                include: {
-                    user: { select: { id: true, name: true, email: true } },
-                    plan: true,
-                    group: { select: { id: true, name: true } },
                 },
             });
             if (expiredSubscriptions.length === 0) {
@@ -53,7 +62,7 @@ let SchedulerService = SchedulerService_1 = class SchedulerService {
                     where: { id: subscription.id },
                     data: {
                         isActive: false,
-                        status: 'REJECTED',
+                        status: 'EXPIRED',
                         expiresAt: now,
                     },
                 });
@@ -78,6 +87,10 @@ let SchedulerService = SchedulerService_1 = class SchedulerService {
         try {
             // Find all active subscriptions that have expired
             const expiredSubscriptions = await this.prisma.subscription.findMany({
+                select: {
+                    id: true,
+                    groupId: true,
+                },
                 where: {
                     isActive: true,
                     status: 'APPROVED',
@@ -97,7 +110,7 @@ let SchedulerService = SchedulerService_1 = class SchedulerService {
                     where: { id: subscription.id },
                     data: {
                         isActive: false,
-                        status: 'REJECTED',
+                        status: 'EXPIRED',
                         expiresAt: now,
                     },
                 });
@@ -121,6 +134,7 @@ let SchedulerService = SchedulerService_1 = class SchedulerService {
         thresholdDate.setDate(thresholdDate.getDate() - 30); // 30 dias atrás
         try {
             // Find all approved groups older than 30 days based on reviewedAt (fallback to createdAt)
+            // Exclude groups with active premium/sponsored subscriptions
             const expiredGroups = await this.prisma.group.findMany({
                 where: {
                     status: 'APPROVED',
@@ -137,6 +151,17 @@ let SchedulerService = SchedulerService_1 = class SchedulerService {
                             },
                         },
                     ],
+                    NOT: {
+                        subscriptions: {
+                            some: {
+                                isActive: true,
+                                status: 'APPROVED',
+                                expiresAt: {
+                                    gt: new Date(),
+                                },
+                            },
+                        },
+                    },
                 },
                 include: {
                     createdBy: { select: { id: true, name: true, email: true } },
