@@ -48,8 +48,11 @@ async function resolveFailed() {
   } catch (e) {
     console.log(`⚠️  Could not query migrations table: ${e.message}`);
     console.log('    Falling back to resolving known failed migration by name...');
-    // Fallback: tenta resolver a migration que sabemos que falhou
-    failedNames = ['20260604000000_sync_full_schema'];
+    // Fallback: tenta resolver as migrations que sabemos que falharam
+    failedNames = [
+      '20260604000000_sync_full_schema',
+      '20260605000000_add_missing_columns',
+    ];
   }
 
   if (failedNames.length === 0) {
