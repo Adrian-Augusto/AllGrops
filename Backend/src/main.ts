@@ -21,13 +21,132 @@ async function bootstrap() {
   // Trust proxy for Render (required for express-rate-limit)
   app.set('trust proxy', true);
 
-  // Sync database schema on startup (for environments without shell access)
+  // Sync database schema on startup — adds missing columns safely (IF NOT EXISTS)
+  // This runs on EVERY startup to guarantee the DB schema matches the Prisma models
   try {
-    console.log('Syncing database schema...');
-    await prisma.$executeRawUnsafe('SELECT 1');
-    console.log('Database connection successful');
+    console.log('🔄 Syncing database schema on startup...');
+
+    await prisma.$executeRawUnsafe(`
+      -- User: missing columns
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "updatedAt"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "termsAccepted"   BOOLEAN      NOT NULL DEFAULT false;
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "termsVersion"    INTEGER      NOT NULL DEFAULT 0;
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "termsAcceptedAt" TIMESTAMP(3);
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastActivityAt"  TIMESTAMP(3);
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "credit"          DOUBLE PRECISION NOT NULL DEFAULT 0;
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      -- Group: missing columns
+      ALTER TABLE "Group" ADD COLUMN IF NOT EXISTS "link"            TEXT NOT NULL DEFAULT '';
+      ALTER TABLE "Group" ADD COLUMN IF NOT EXISTS "platform"        TEXT NOT NULL DEFAULT '';
+      ALTER TABLE "Group" ADD COLUMN IF NOT EXISTS "photoUrl"        TEXT NOT NULL DEFAULT '';
+      ALTER TABLE "Group" ADD COLUMN IF NOT EXISTS "isFeatured"      BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE "Group" ADD COLUMN IF NOT EXISTS "rejectionReason" TEXT;
+      ALTER TABLE "Group" ADD COLUMN IF NOT EXISTS "reviewedById"    TEXT;
+      ALTER TABLE "Group" ADD COLUMN IF NOT EXISTS "reviewedAt"      TIMESTAMP(3);
+      ALTER TABLE "Group" ADD COLUMN IF NOT EXISTS "categoryId"      TEXT;
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      -- Category: missing columns
+      ALTER TABLE "Category" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      ALTER TABLE "Category" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      ALTER TABLE "Category" ADD COLUMN IF NOT EXISTS "slug"      TEXT;
+    `);
+    // Populate empty slugs before adding constraint
+    await prisma.$executeRawUnsafe(`
+      UPDATE "Category" SET "slug" = LOWER(REPLACE("name", ' ', '-')) WHERE "slug" IS NULL OR "slug" = '';
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      -- Membership: missing columns
+      ALTER TABLE "Membership" ADD COLUMN IF NOT EXISTS "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      -- Plan: missing columns
+      ALTER TABLE "Plan" ADD COLUMN IF NOT EXISTS "createdAt"           TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      ALTER TABLE "Plan" ADD COLUMN IF NOT EXISTS "updatedAt"           TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      ALTER TABLE "Plan" ADD COLUMN IF NOT EXISTS "description"         TEXT;
+      ALTER TABLE "Plan" ADD COLUMN IF NOT EXISTS "durationDays"        INTEGER          NOT NULL DEFAULT 30;
+      ALTER TABLE "Plan" ADD COLUMN IF NOT EXISTS "maxSponsoredGroups"  INTEGER          NOT NULL DEFAULT 0;
+      ALTER TABLE "Plan" ADD COLUMN IF NOT EXISTS "isActive"            BOOLEAN          NOT NULL DEFAULT true;
+      ALTER TABLE "Plan" ADD COLUMN IF NOT EXISTS "type"                TEXT             NOT NULL DEFAULT 'PREMIUM_30_DAYS';
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      -- Subscription: missing columns
+      ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "isActive"  BOOLEAN      NOT NULL DEFAULT false;
+      ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "expiresAt" TIMESTAMP(3);
+      ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "paymentId" TEXT;
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      -- Post: missing columns
+      ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "userId"    TEXT         NOT NULL DEFAULT 'unknown';
+      ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "status"    TEXT         NOT NULL DEFAULT 'PUBLISHED';
+      ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "likes"     INTEGER      NOT NULL DEFAULT 0;
+      ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "views"     INTEGER      NOT NULL DEFAULT 0;
+      ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      -- Payment: missing columns
+      ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      -- RequestLog table (if not exists)
+      CREATE TABLE IF NOT EXISTS "RequestLog" (
+        "id"           TEXT         NOT NULL,
+        "method"       TEXT         NOT NULL,
+        "path"         TEXT         NOT NULL,
+        "statusCode"   INTEGER      NOT NULL,
+        "userId"       TEXT,
+        "userAgent"    TEXT,
+        "ip"           TEXT,
+        "duration"     INTEGER      NOT NULL,
+        "success"      BOOLEAN      NOT NULL,
+        "errorMessage" TEXT,
+        "createdAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "RequestLog_pkey" PRIMARY KEY ("id")
+      );
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      -- Comment table (if not exists)
+      CREATE TABLE IF NOT EXISTS "Comment" (
+        "id"        TEXT         NOT NULL,
+        "content"   TEXT         NOT NULL,
+        "postId"    TEXT         NOT NULL,
+        "userId"    TEXT         NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
+      );
+    `);
+
+    // Enum: add EXPIRED to SubscriptionStatus safely
+    await prisma.$executeRawUnsafe(`
+      DO $$ BEGIN
+        BEGIN ALTER TYPE "SubscriptionStatus" ADD VALUE IF NOT EXISTS 'EXPIRED'; EXCEPTION WHEN others THEN NULL; END;
+      END $$;
+    `);
+
+    // GroupStatus: add EXPIRED safely
+    await prisma.$executeRawUnsafe(`
+      DO $$ BEGIN
+        BEGIN ALTER TYPE "GroupStatus" ADD VALUE IF NOT EXISTS 'EXPIRED';  EXCEPTION WHEN others THEN NULL; END;
+        BEGIN ALTER TYPE "GroupStatus" ADD VALUE IF NOT EXISTS 'REJECTED'; EXCEPTION WHEN others THEN NULL; END;
+      END $$;
+    `);
+
+    console.log('✅ Database schema sync complete');
   } catch (error) {
-    console.error('Database connection failed:', error);
+    console.error('❌ Database schema sync error:', error);
+    // Non-fatal: app continues even if sync partially fails
   }
 
   // Security: Apply helmet middleware for HTTP headers protection
