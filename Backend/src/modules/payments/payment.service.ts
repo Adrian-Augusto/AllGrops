@@ -60,11 +60,26 @@ export class PaymentsService {
         };
       }
 
-      // Validate plan exists and is active
+      // Validate plan exists and is active (accepts UUID or slug)
       console.log('[PaymentsService] Looking up plan:', planId);
-      const plan = await this.prisma.plan.findUnique({
-        where: { id: planId },
-      });
+      let plan;
+      // Try to find by UUID first, then by name/slug
+      try {
+        plan = await this.prisma.plan.findUnique({
+          where: { id: planId },
+        });
+      } catch (e) {
+        // If not a valid UUID, try to find by name
+        plan = await this.prisma.plan.findFirst({
+          where: {
+            name: {
+              equals: planId,
+              mode: 'insensitive',
+            },
+          },
+        });
+      }
+
       console.log('[PaymentsService] Plan found:', plan ? plan.id : 'NOT FOUND');
       if (!plan || !plan.isActive) {
         console.error('[PaymentsService] Plan not found or inactive:', planId);

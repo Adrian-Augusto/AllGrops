@@ -24,11 +24,18 @@ model User {
   // Credit system
   credit           Float          @default(0)
   createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
   createdGroups    Group[]        @relation("GroupCreator")
   reviewedGroups   Group[]        @relation("GroupReviewer")
   memberships      Membership[]
   subscriptions    Subscription[]
   posts            Post[]
+  comments         Comment[]
+
+  @@index([email])
+  @@index([googleId])
+  @@index([role])
+  @@index([lastActivityAt])
 }
 
 model Group {
@@ -42,7 +49,7 @@ model Group {
   status          GroupStatus  @default(PENDING)
 
   createdById     String
-  createdBy       User         @relation("GroupCreator", fields: [createdById], references: [id])
+  createdBy       User         @relation("GroupCreator", fields: [createdById], references: [id], onDelete: Cascade)
 
   reviewedById    String?
   reviewedBy      User?        @relation("GroupReviewer", fields: [reviewedById], references: [id])
@@ -64,27 +71,34 @@ model Group {
 
   @@index([status])
   @@index([categoryId])
+  @@index([createdById])
+  @@index([isFeatured])
 }
 
 model Category {
-  id     String  @id @default(uuid())
-  name   String
-  slug   String  @unique
-  groups Group[]
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  groups    Group[]
 
   @@unique([name(mode: "insensitive")])
   @@index([slug])
 }
 
 model Membership {
-  id      String         @id @default(uuid())
-  userId  String
-  groupId String
-  role    MembershipRole @default(MEMBER)
-  user    User           @relation(fields: [userId], references: [id])
-  group   Group          @relation(fields: [groupId], references: [id])
+  id        String         @id @default(uuid())
+  userId    String
+  groupId   String
+  role      MembershipRole @default(MEMBER)
+  joinedAt  DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@unique([userId, groupId])
+  @@index([userId])
+  @@index([groupId])
 }
 
 model Plan {
@@ -97,7 +111,11 @@ model Plan {
   maxSponsoredGroups    Int            @default(0)
   isActive              Boolean        @default(true)
   createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
   subscriptions         Subscription[]
+
+  @@index([type])
+  @@index([isActive])
 }
 
 model Subscription {
@@ -110,28 +128,38 @@ model Subscription {
   expiresAt DateTime?          // Quando o patrocínio expira
   paymentId String?
   createdAt DateTime           @default(now())
-  user      User               @relation(fields: [userId], references: [id])
-  group     Group?             @relation(fields: [groupId], references: [id])
+  updatedAt DateTime           @updatedAt
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group?             @relation(fields: [groupId], references: [id], onDelete: Cascade)
   plan      Plan               @relation(fields: [planId], references: [id])
   payment   Payment?
+
+  @@index([userId])
+  @@index([groupId])
+  @@index([planId])
+  @@index([status])
+  @@index([expiresAt])
 }
 
 model Payment {
-  id                String   @id @default(uuid())
-  mercadoPagoId     String?  @unique
-  subscriptionId    String   @unique
-  status            String   @default("PENDING")
-  idempotencyKey    String   @unique
-  webhookProcessed  Boolean  @default(false)
+  id                String        @id @default(uuid())
+  mercadoPagoId     String?       @unique
+  subscriptionId    String        @unique
+  status            PaymentStatus @default(PENDING)
+  idempotencyKey    String        @unique
+  webhookProcessed  Boolean       @default(false)
   lastWebhookId     String?
   externalReference String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  subscription      Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  subscription      Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([subscriptionId])
 }
 
 model Post {
-  id          String   @id @default(uuid())
+  id          String      @id @default(uuid())
   title       String
   description String
   link        String?
@@ -139,9 +167,19 @@ model Post {
   photo       String?
   groupId     String
   userId      String
-  createdAt   DateTime @default(now())
-  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      PostStatus  @default(PUBLISHED)
+  likes       Int         @default(0)
+  views       Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  group       Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+
+  @@index([groupId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model RequestLog {
@@ -156,6 +194,11 @@ model RequestLog {
   success     Boolean
   errorMessage String?
   createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([path])
+  @@index([createdAt])
+  @@index([success])
 }
 
 enum UserRole {
@@ -179,6 +222,7 @@ enum SubscriptionStatus {
   PENDING
   APPROVED
   REJECTED
+  EXPIRED
 }
 
 enum PlanType {
@@ -186,4 +230,34 @@ enum PlanType {
   SPONSORED_7_DAYS
   PREMIUM_15_DAYS
   PREMIUM_30_DAYS
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  REFUNDED
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  DELETED
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
+  @@index([createdAt])
 }

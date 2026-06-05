@@ -3,10 +3,10 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class CreatePaymentDto {
   @ApiProperty({
-    description: 'ID do plano premium (todos os seus grupos ficarão destacados)',
-    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    description: 'ID do plano premium (todos os seus grupos ficarão destacados) - pode ser UUID ou slug',
+    example: 'three-days',
   })
-  @IsUUID()
+  @IsString()
   @IsNotEmpty()
   planId: string;
 
