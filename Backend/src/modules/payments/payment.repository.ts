@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
+import { PaymentStatus } from '@prisma/client';
 
 @Injectable()
 export class PaymentRepository {
@@ -29,7 +30,7 @@ export class PaymentRepository {
           subscriptionId: data.subscriptionId,
           idempotencyKey: data.idempotencyKey,
           externalReference: data.externalReference,
-          status: 'PENDING',
+          status: PaymentStatus.PENDING,
         },
       });
       return payment;
@@ -53,7 +54,7 @@ export class PaymentRepository {
     });
   }
 
-  async updatePaymentStatus(paymentId: string, mercadoPagoId: string, status: string) {
+  async updatePaymentStatus(paymentId: string, mercadoPagoId: string, status: PaymentStatus) {
     return this.prisma.payment.update({
       where: { id: paymentId },
       data: {

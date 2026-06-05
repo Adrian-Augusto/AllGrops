@@ -14,6 +14,7 @@ exports.PaymentRepository = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const uuid_1 = require("uuid");
+const client_1 = require("@prisma/client");
 let PaymentRepository = PaymentRepository_1 = class PaymentRepository {
     prisma;
     logger = new common_1.Logger(PaymentRepository_1.name);
@@ -35,7 +36,7 @@ let PaymentRepository = PaymentRepository_1 = class PaymentRepository {
                     subscriptionId: data.subscriptionId,
                     idempotencyKey: data.idempotencyKey,
                     externalReference: data.externalReference,
-                    status: 'PENDING',
+                    status: client_1.PaymentStatus.PENDING,
                 },
             });
             return payment;
