@@ -9,8 +9,8 @@
     "prisma:migrate": "node node_modules/prisma/build/index.js migrate dev",
     "migrate:deploy": "node scripts/safe-migrate.js",
     "db:push": "node node_modules/prisma/build/index.js db push --accept-data-loss",
-    "build": "npm run prisma:generate && node node_modules/typescript/bin/tsc -p tsconfig.json",
-    "build:prod": "npm run prisma:generate && npm run db:push && node node_modules/typescript/bin/tsc -p tsconfig.json",
+    "build": "npm install && npm run prisma:generate && node node_modules/typescript/bin/tsc -p tsconfig.json",
+    "build:prod": "npm install && npm run prisma:generate && npm run db:push && node node_modules/typescript/bin/tsc -p tsconfig.json",
     "start": "npm run build && npm run migrate:deploy && node dist/main.js",
     "start:prod": "npm run build && npm run migrate:deploy && node dist/main.js",
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts"
