@@ -22,39 +22,32 @@ async function main() {
     description: string;
   }> = [
     {
-      name: 'Teste - R$ 0,01',
-      price: 0.01,
-      duration: 1,
-      type: 'BASIC',
-      description: 'Plano de teste',
-    },
-    {
-      name: '3 Dias - R$ 12,90',
-      price: 12.90,
+      name: '3 Dias - R$ 9,90',
+      price: 9.90,
       duration: 3,
       type: 'BASIC',
-      description: 'Destaque de 3 dias',
+      description: 'Destaque seu grupo por 3 dias - Apareça no topo da lista',
     },
     {
-      name: '7 Dias - R$ 24,90',
-      price: 24.90,
+      name: '7 Dias - R$ 19,90',
+      price: 19.90,
       duration: 7,
       type: 'BASIC',
-      description: 'Destaque de 7 dias',
+      description: 'Destaque seu grupo por 7 dias - Maior visibilidade',
     },
     {
-      name: '15 Dias - R$ 39,90',
-      price: 39.90,
+      name: '15 Dias - R$ 29,90',
+      price: 29.90,
       duration: 15,
       type: 'PREMIUM',
-      description: 'Destaque premium de 15 dias',
+      description: 'Conta premium por 15 dias - Destaque até 5 grupos',
     },
     {
       name: '30 Dias - R$ 49,90',
       price: 49.90,
       duration: 30,
       type: 'PREMIUM',
-      description: 'Destaque premium de 30 dias (Oferta: de R$ 82,90 por R$ 49,90 - válida na primeira compra)',
+      description: 'Conta premium por 30 dias - Destaque até 10 grupos',
     },
   ];
 

@@ -1,43 +1,10 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
@@ -50,21 +17,21 @@ const mail_service_1 = require("../mail/mail.service");
 const group_merging_1 = require("./utils/group-merging");
 const category_service_1 = require("./services/category.service");
 const subscription_limits_service_1 = require("../subscriptions/services/subscription-limits.service");
-const fs = __importStar(require("fs"));
-const path = __importStar(require("path"));
-const uuid_1 = require("uuid");
+const upload_service_1 = require("../../common/services/upload.service");
 let GroupsService = GroupsService_1 = class GroupsService {
     prisma;
     mailService;
     categoryService;
     subscriptionLimitsService;
+    uploadService;
     logger = new common_1.Logger(GroupsService_1.name);
     sponsoredCache = new Map();
-    constructor(prisma, mailService, categoryService, subscriptionLimitsService) {
+    constructor(prisma, mailService, categoryService, subscriptionLimitsService, uploadService) {
         this.prisma = prisma;
         this.mailService = mailService;
         this.categoryService = categoryService;
         this.subscriptionLimitsService = subscriptionLimitsService;
+        this.uploadService = uploadService;
     }
     // USER ENDPOINTS
     async createGroup(userId, data) {
@@ -78,7 +45,7 @@ let GroupsService = GroupsService_1 = class GroupsService {
             // Buscar ou criar categoria automaticamente
             const category = await this.categoryService.findOrCreate(data.category);
             console.log('[GroupsService] Category found/created:', category);
-            const photoUrl = this.normalizeGroupPhotoUrl(data.photoUrl);
+            const photoUrl = await this.normalizeGroupPhotoUrl(data.photoUrl);
             console.log('[GroupsService] Attempting to create group in database...');
             const group = await this.prisma.group.create({
                 data: {
@@ -275,35 +242,11 @@ let GroupsService = GroupsService_1 = class GroupsService {
             pages: Math.ceil(total / limit),
         };
     }
-    normalizeGroupPhotoUrl(photoUrl) {
+    async normalizeGroupPhotoUrl(photoUrl) {
         if (!photoUrl?.startsWith('data:image/')) {
             return photoUrl;
         }
-        const match = photoUrl.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,(.+)$/);
-        if (!match) {
-            throw new common_1.BadRequestException('Formato da foto invalido');
-        }
-        const mime = match[1];
-        const base64 = match[2];
-        const extensions = {
-            'image/jpeg': '.jpg',
-            'image/jpg': '.jpg',
-            'image/png': '.png',
-            'image/webp': '.webp',
-        };
-        const extension = extensions[mime];
-        const buffer = Buffer.from(base64, 'base64');
-        const maxSize = 5 * 1024 * 1024;
-        if (buffer.length > maxSize) {
-            throw new common_1.BadRequestException('Foto nao pode exceder 5MB');
-        }
-        const uploadsDir = path.join(process.cwd(), 'uploads', 'groups');
-        if (!fs.existsSync(uploadsDir)) {
-            fs.mkdirSync(uploadsDir, { recursive: true });
-        }
-        const fileName = `${(0, uuid_1.v4)()}${extension}`;
-        fs.writeFileSync(path.join(uploadsDir, fileName), buffer);
-        return `uploads/groups/${fileName}`;
+        return await this.uploadService.uploadBase64Image(photoUrl, 'groups');
     }
     async findAll(status, page = 1, limit = 10) {
         const skip = (page - 1) * limit;
@@ -488,5 +431,6 @@ exports.GroupsService = GroupsService = GroupsService_1 = __decorate([
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         mail_service_1.MailService,
         category_service_1.CategoryService,
-        subscription_limits_service_1.SubscriptionLimitsService])
+        subscription_limits_service_1.SubscriptionLimitsService,
+        upload_service_1.UploadService])
 ], GroupsService);

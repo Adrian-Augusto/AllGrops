@@ -5,9 +5,7 @@ import { CreateGroupDto } from './dto/create-group.dto';
 import { mergeGroupsByFeatureStatus, sortGroupsBySponsorship } from './utils/group-merging';
 import { CategoryService } from './services/category.service';
 import { SubscriptionLimitsService } from '../subscriptions/services/subscription-limits.service';
-import * as fs from 'fs';
-import * as path from 'path';
-import { v4 as uuid } from 'uuid';
+import { UploadService } from '../../common/services/upload.service';
 
 @Injectable()
 export class GroupsService {
@@ -19,6 +17,7 @@ export class GroupsService {
     private mailService: MailService,
     private categoryService: CategoryService,
     private subscriptionLimitsService: SubscriptionLimitsService,
+    private uploadService: UploadService,
   ) {}
 
   // USER ENDPOINTS
@@ -38,7 +37,7 @@ export class GroupsService {
       const category = await this.categoryService.findOrCreate(data.category);
       console.log('[GroupsService] Category found/created:', category);
 
-      const photoUrl = this.normalizeGroupPhotoUrl(data.photoUrl);
+      const photoUrl = await this.normalizeGroupPhotoUrl(data.photoUrl);
 
       console.log('[GroupsService] Attempting to create group in database...');
       const group = await this.prisma.group.create({
@@ -256,41 +255,12 @@ export class GroupsService {
     };
   }
 
-  private normalizeGroupPhotoUrl(photoUrl: string) {
+  private async normalizeGroupPhotoUrl(photoUrl: string) {
     if (!photoUrl?.startsWith('data:image/')) {
       return photoUrl;
     }
 
-    const match = photoUrl.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,(.+)$/);
-    if (!match) {
-      throw new BadRequestException('Formato da foto invalido');
-    }
-
-    const mime = match[1];
-    const base64 = match[2];
-    const extensions: Record<string, string> = {
-      'image/jpeg': '.jpg',
-      'image/jpg': '.jpg',
-      'image/png': '.png',
-      'image/webp': '.webp',
-    };
-    const extension = extensions[mime];
-    const buffer = Buffer.from(base64, 'base64');
-    const maxSize = 5 * 1024 * 1024;
-
-    if (buffer.length > maxSize) {
-      throw new BadRequestException('Foto nao pode exceder 5MB');
-    }
-
-    const uploadsDir = path.join(process.cwd(), 'uploads', 'groups');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    const fileName = `${uuid()}${extension}`;
-    fs.writeFileSync(path.join(uploadsDir, fileName), buffer);
-
-    return `uploads/groups/${fileName}`;
+    return await this.uploadService.uploadBase64Image(photoUrl, 'groups');
   }
 
   async findAll(status?: string, page = 1, limit = 10) {

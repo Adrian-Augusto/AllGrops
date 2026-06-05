@@ -10,11 +10,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuthModule } from '../auth/auth.module';
 import { MailModule } from '../mail/mail.module';
 import { SubscriptionsModule } from '../subscriptions/subscription.module';
+import { UploadService } from '../../common/services/upload.service';
 
 @Module({
   imports: [AuthModule, MailModule, SubscriptionsModule],
   controllers: [GroupsController, AdminGroupsController],
-  providers: [GroupsService, CategoryService, FeaturedGroupsService, AdminGuard, JwtAuthGuard, PrismaService],
+  providers: [GroupsService, CategoryService, FeaturedGroupsService, AdminGuard, JwtAuthGuard, PrismaService, UploadService],
   exports: [GroupsService, CategoryService, FeaturedGroupsService],
 })
 export class GroupsModule {}

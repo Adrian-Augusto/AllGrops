@@ -19,6 +19,7 @@ const prisma_service_1 = require("../../prisma/prisma.service");
 const auth_module_1 = require("../auth/auth.module");
 const mail_module_1 = require("../mail/mail.module");
 const subscription_module_1 = require("../subscriptions/subscription.module");
+const upload_service_1 = require("../../common/services/upload.service");
 let GroupsModule = class GroupsModule {
 };
 exports.GroupsModule = GroupsModule;
@@ -26,7 +27,7 @@ exports.GroupsModule = GroupsModule = __decorate([
     (0, common_1.Module)({
         imports: [auth_module_1.AuthModule, mail_module_1.MailModule, subscription_module_1.SubscriptionsModule],
         controllers: [group_controller_1.GroupsController, admin_group_controller_1.AdminGroupsController],
-        providers: [group_service_1.GroupsService, category_service_1.CategoryService, featured_groups_service_1.FeaturedGroupsService, admin_guard_1.AdminGuard, jwt_auth_guard_1.JwtAuthGuard, prisma_service_1.PrismaService],
+        providers: [group_service_1.GroupsService, category_service_1.CategoryService, featured_groups_service_1.FeaturedGroupsService, admin_guard_1.AdminGuard, jwt_auth_guard_1.JwtAuthGuard, prisma_service_1.PrismaService, upload_service_1.UploadService],
         exports: [group_service_1.GroupsService, category_service_1.CategoryService, featured_groups_service_1.FeaturedGroupsService],
     })
 ], GroupsModule);
