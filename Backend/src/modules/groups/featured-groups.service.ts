@@ -64,9 +64,16 @@ export class FeaturedGroupsService implements OnModuleInit {
         this.logger.log(`❌ Desativados ${previousFeatured.length} grupos do destaque`);
       }
 
-      // 3. Ativar próximos em destaque (próximos 5 grupos)
-      const newFeaturedCount = Math.min(5, groupsWithActivePlans.length);
-      const newFeaturedIds = groupsWithActivePlans
+      // Shuffle groups with active plans to rotate them dynamically and fairly
+      const shuffledGroups = [...groupsWithActivePlans];
+      for (let i = shuffledGroups.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledGroups[i], shuffledGroups[j]] = [shuffledGroups[j], shuffledGroups[i]];
+      }
+
+      // 3. Ativar próximos em destaque (próximos 5 grupos da lista embaralhada)
+      const newFeaturedCount = Math.min(5, shuffledGroups.length);
+      const newFeaturedIds = shuffledGroups
         .slice(0, newFeaturedCount)
         .map((g) => g.id);
 

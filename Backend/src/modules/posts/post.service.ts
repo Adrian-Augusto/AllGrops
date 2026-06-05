@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -30,16 +30,22 @@ export class PostsService {
     let photoPath: string | null = null;
 
     if (data.photo) {
-      // Validar tipo de arquivo
-      const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
-      if (!allowedMimes.includes(data.photo.mimetype)) {
-        throw new Error('Apenas JPG, PNG e WebP são permitidos');
+      // Validar tipo de arquivo e obter extensão de forma segura
+      const allowedMimes: Record<string, string> = {
+        'image/jpeg': '.jpg',
+        'image/png': '.png',
+        'image/webp': '.webp',
+      };
+
+      const fileExt = allowedMimes[data.photo.mimetype];
+      if (!fileExt) {
+        throw new BadRequestException('Apenas JPG, PNG e WebP são permitidos');
       }
 
       // Validar tamanho (máx 5MB)
       const maxSize = 5 * 1024 * 1024;
       if (data.photo.size > maxSize) {
-        throw new Error('Foto não pode exceder 5MB');
+        throw new BadRequestException('Foto não pode exceder 5MB');
       }
 
       const uploadsDir = path.join(process.cwd(), 'uploads', 'posts');
@@ -47,7 +53,6 @@ export class PostsService {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
 
-      const fileExt = path.extname(data.photo.originalname);
       const fileName = `${uuid()}${fileExt}`;
       const filePath = path.join(uploadsDir, fileName);
 

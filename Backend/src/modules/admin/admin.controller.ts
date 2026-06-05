@@ -8,12 +8,14 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Body,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { AdminGuard } from './admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FeaturedGroupsService } from '../groups/featured-groups.service';
+import { CurrentUser } from '../auth/current-user.decorator';
 
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -53,16 +55,20 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Approve a group' })
   @ApiResponse({ status: 200, description: 'Group approved successfully' })
-  async approveGroup(@Param('id') id: string) {
-    return this.adminService.approveGroup(id);
+  async approveGroup(@Param('id') id: string, @CurrentUser() admin: any) {
+    return this.adminService.approveGroup(id, admin.id);
   }
 
   @Patch('groups/:id/reject')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reject a group' })
   @ApiResponse({ status: 200, description: 'Group rejected successfully' })
-  async rejectGroup(@Param('id') id: string) {
-    return this.adminService.rejectGroup(id);
+  async rejectGroup(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @CurrentUser() admin: any,
+  ) {
+    return this.adminService.rejectGroup(id, admin.id, reason);
   }
 
   @Post('groups/rotate-featured')

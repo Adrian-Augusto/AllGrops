@@ -105,12 +105,12 @@ async function bootstrap() {
 
   // Rate limiters for payment routes (AFTER CORS)
   const paymentLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // 10 requests per hour
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: process.env.NODE_ENV === 'production' ? 30 : 1000, // 30 requests per 15 minutes in prod, high limit in dev
     message: 'Too many payment requests, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
-    skip: (req) => req.method === 'OPTIONS', // Skip OPTIONS requests
+    skip: (req) => req.method === 'OPTIONS' || process.env.NODE_ENV !== 'production', // Skip rate limiting in development
   });
 
   const webhookLimiter = rateLimit({

@@ -1,11 +1,15 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { GroupsService } from '../groups/group.service';
 
 @Injectable()
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private groupsService: GroupsService,
+  ) {}
 
   async getStats() {
     const totalUsers = await this.prisma.user.count();
@@ -69,65 +73,18 @@ export class AdminService {
     };
   }
 
-  async approveGroup(groupId: string) {
+  async approveGroup(groupId: string, adminId: string) {
     if (!groupId) {
       throw new BadRequestException('Group ID is required');
     }
-
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-    });
-
-    if (!group) {
-      throw new NotFoundException('Group not found');
-    }
-
-    if (group.status !== 'PENDING') {
-      throw new BadRequestException(
-        `Cannot approve group with status: ${group.status}`,
-      );
-    }
-
-    return this.prisma.group.update({
-      where: { id: groupId },
-      data: { status: 'APPROVED' },
-      include: {
-        createdBy: { select: { id: true, name: true, email: true } },
-        category: true,
-      },
-    });
+    return this.groupsService.approveGroup(groupId, adminId);
   }
 
-  async rejectGroup(groupId: string, rejectionReason?: string) {
+  async rejectGroup(groupId: string, adminId: string, rejectionReason?: string) {
     if (!groupId) {
       throw new BadRequestException('Group ID is required');
     }
-
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-    });
-
-    if (!group) {
-      throw new NotFoundException('Group not found');
-    }
-
-    if (group.status !== 'PENDING') {
-      throw new BadRequestException(
-        `Cannot reject group with status: ${group.status}`,
-      );
-    }
-
-    return this.prisma.group.update({
-      where: { id: groupId },
-      data: { 
-        status: 'REJECTED',
-        rejectionReason: rejectionReason || 'Rejected by admin',
-      },
-      include: {
-        createdBy: { select: { id: true, name: true, email: true } },
-        category: true,
-      },
-    });
+    return this.groupsService.rejectGroup(groupId, adminId, rejectionReason || 'Rejected by admin');
   }
 
   async getGroupStatistics() {

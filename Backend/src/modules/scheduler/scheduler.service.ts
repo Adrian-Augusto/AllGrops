@@ -48,7 +48,7 @@ export class SchedulerService {
           where: { id: subscription.id },
           data: {
             isActive: false,
-            status: 'REJECTED',
+            status: 'EXPIRED',
             expiresAt: now,
           },
         });
@@ -103,7 +103,7 @@ export class SchedulerService {
           where: { id: subscription.id },
           data: {
             isActive: false,
-            status: 'REJECTED',
+            status: 'EXPIRED',
             expiresAt: now,
           },
         });
@@ -132,6 +132,7 @@ export class SchedulerService {
 
     try {
       // Find all approved groups older than 30 days based on reviewedAt (fallback to createdAt)
+      // Exclude groups with active premium/sponsored subscriptions
       const expiredGroups = await this.prisma.group.findMany({
         where: {
           status: 'APPROVED',
@@ -148,6 +149,17 @@ export class SchedulerService {
               },
             },
           ],
+          NOT: {
+            subscriptions: {
+              some: {
+                isActive: true,
+                status: 'APPROVED',
+                expiresAt: {
+                  gt: new Date(),
+                },
+              },
+            },
+          },
         },
         include: {
           createdBy: { select: { id: true, name: true, email: true } },

@@ -29,9 +29,15 @@ export class UploadController {
       throw new BadRequestException('Nenhuma foto foi enviada');
     }
 
-    // Validar tipo de arquivo
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedMimes.includes(file.mimetype)) {
+    // Validar tipo de arquivo e obter extensão correspondente de forma segura
+    const allowedMimes: Record<string, string> = {
+      'image/jpeg': '.jpg',
+      'image/png': '.png',
+      'image/webp': '.webp',
+    };
+
+    const fileExt = allowedMimes[file.mimetype];
+    if (!fileExt) {
       throw new BadRequestException('Apenas JPG, PNG e WebP são permitidos');
     }
 
@@ -41,8 +47,7 @@ export class UploadController {
       throw new BadRequestException('Foto não pode exceder 5MB');
     }
 
-    // Gerar nome único
-    const fileExt = path.extname(file.originalname);
+    // Gerar nome único usando a extensão segura derivada do mimetype
     const fileName = `${uuid()}${fileExt}`;
     const filePath = path.join(process.cwd(), 'uploads', 'groups', fileName);
 

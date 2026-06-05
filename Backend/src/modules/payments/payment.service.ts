@@ -52,10 +52,22 @@ export class PaymentsService {
       if (existingPayment) {
         this.logger.log(`Duplicate payment request with key: ${key}`);
         console.log('[PaymentsService] Returning cached payment:', existingPayment.id);
+        
+        let initPoint = undefined;
+        const preferenceId = existingPayment.subscription?.paymentId;
+        if (preferenceId) {
+          try {
+            const preference = await this.preferenceClient.get({ id: preferenceId });
+            initPoint = preference.init_point;
+          } catch (e: any) {
+            this.logger.warn(`Failed to fetch preference details from Mercado Pago: ${e.message}`);
+          }
+        }
+
         // Return cached result if already exists
         return {
-          init_point: existingPayment.subscription?.paymentId || undefined,
-          preference_id: existingPayment.id,
+          init_point: initPoint,
+          preference_id: preferenceId || undefined,
           status: existingPayment.status,
         };
       }
@@ -231,7 +243,17 @@ export class PaymentsService {
 
       safeLogPaymentInfo(paymentId, mappedStatus, 'Webhook processed');
 
-      // Update subscription and payment status
+      // Associate Mercado Pago payment ID and update payment status in database
+      const paymentRecord = await this.paymentRepository.findByExternalReference(externalReference);
+      if (paymentRecord) {
+        await this.paymentRepository.updatePaymentStatus(
+          paymentRecord.id,
+          String(paymentId),
+          mappedStatus as any,
+        );
+      }
+
+      // Update subscription status
       await this.subscriptionsService.updatePaymentStatus(
         externalReference,
         String(paymentId),
@@ -239,9 +261,7 @@ export class PaymentsService {
       );
 
       // Record webhook processing for idempotency
-      if (existingPayment) {
-        await this.paymentRepository.recordWebhookProcessing(String(paymentId), body.id);
-      }
+      await this.paymentRepository.recordWebhookProcessing(String(paymentId), body.id);
 
       return { success: true, status: mappedStatus };
     } catch (error: unknown) {
