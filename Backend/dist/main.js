@@ -156,6 +156,15 @@ async function bootstrap() {
         BEGIN ALTER TYPE "SubscriptionStatus" ADD VALUE IF NOT EXISTS 'EXPIRED'; EXCEPTION WHEN others THEN NULL; END;
       END $$;
     `);
+        // PlanType: add current plan values safely for databases created with old BASIC/PREMIUM enum
+        await prisma.$executeRawUnsafe(`
+      DO $$ BEGIN
+        BEGIN ALTER TYPE "PlanType" ADD VALUE IF NOT EXISTS 'SPONSORED_3_DAYS'; EXCEPTION WHEN others THEN NULL; END;
+        BEGIN ALTER TYPE "PlanType" ADD VALUE IF NOT EXISTS 'SPONSORED_7_DAYS'; EXCEPTION WHEN others THEN NULL; END;
+        BEGIN ALTER TYPE "PlanType" ADD VALUE IF NOT EXISTS 'PREMIUM_15_DAYS'; EXCEPTION WHEN others THEN NULL; END;
+        BEGIN ALTER TYPE "PlanType" ADD VALUE IF NOT EXISTS 'PREMIUM_30_DAYS'; EXCEPTION WHEN others THEN NULL; END;
+      END $$;
+    `);
         // GroupStatus: add EXPIRED safely
         await prisma.$executeRawUnsafe(`
       DO $$ BEGIN

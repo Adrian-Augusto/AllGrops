@@ -13,6 +13,44 @@ export class PaymentsService {
   private readonly accessToken: string;
   private preferenceClient: any;
   private paymentClient: any;
+  private readonly defaultPlans = [
+    {
+      slug: 'three-days',
+      name: '3 Days Sponsored',
+      price: 0.1,
+      type: 'SPONSORED_3_DAYS' as const,
+      description: 'Sponsor your group for 3 days',
+      durationDays: 3,
+      maxSponsoredGroups: 1,
+    },
+    {
+      slug: 'seven-days',
+      name: '7 Days Sponsored',
+      price: 19.99,
+      type: 'SPONSORED_7_DAYS' as const,
+      description: 'Sponsor your group for 7 days',
+      durationDays: 7,
+      maxSponsoredGroups: 1,
+    },
+    {
+      slug: 'fifteen-days',
+      name: '15 Days Premium',
+      price: 29.99,
+      type: 'PREMIUM_15_DAYS' as const,
+      description: 'Premium account for 15 days',
+      durationDays: 15,
+      maxSponsoredGroups: 5,
+    },
+    {
+      slug: 'thirty-days',
+      name: '30 Days Premium',
+      price: 49.99,
+      type: 'PREMIUM_30_DAYS' as const,
+      description: 'Premium account for 30 days',
+      durationDays: 30,
+      maxSponsoredGroups: 10,
+    },
+  ];
 
   constructor(
     private subscriptionsService: SubscriptionsService,
@@ -72,25 +110,9 @@ export class PaymentsService {
         };
       }
 
-      // Validate plan exists and is active (accepts UUID or slug)
+      // Validate plan exists and is active (accepts UUID, slug, name, or type)
       console.log('[PaymentsService] Looking up plan:', planId);
-      let plan;
-      // Try to find by UUID first, then by name/slug
-      try {
-        plan = await this.prisma.plan.findUnique({
-          where: { id: planId },
-        });
-      } catch (e) {
-        // If not a valid UUID, try to find by name
-        plan = await this.prisma.plan.findFirst({
-          where: {
-            name: {
-              equals: planId,
-              mode: 'insensitive',
-            },
-          },
-        });
-      }
+      const plan = await this.resolvePlan(planId);
 
       console.log('[PaymentsService] Plan found:', plan ? plan.id : 'NOT FOUND');
       if (!plan || !plan.isActive) {
@@ -103,12 +125,12 @@ export class PaymentsService {
       const subscription = await this.subscriptionsService.createSubscription(
         userId,
         '', // Empty groupId for premium subscription
-        planId,
+        plan.id,
       );
       console.log('[PaymentsService] Subscription created:', subscription.id);
 
       // Create payment tracking record
-      const externalReference = `${userId}:${planId}:${subscription.id}`;
+      const externalReference = `${userId}:${plan.id}:${subscription.id}`;
       console.log('[PaymentsService] Creating payment record...');
       const paymentRecord = await this.paymentRepository.createPayment({
         subscriptionId: subscription.id,
@@ -275,6 +297,8 @@ export class PaymentsService {
 
   async getAvailablePlans() {
     try {
+      await this.ensureDefaultPlans();
+
       const plans = await this.prisma.plan.findMany({
         where: { isActive: true },
         orderBy: { price: 'asc' },
@@ -286,6 +310,58 @@ export class PaymentsService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`Error fetching plans: ${errorMessage}`);
       throw error;
+    }
+  }
+
+  private async resolvePlan(planId: string) {
+    await this.ensureDefaultPlans();
+
+    const normalizedPlanId = planId.trim().toLowerCase();
+    const defaultPlan = this.defaultPlans.find((plan) =>
+      plan.slug === normalizedPlanId ||
+      plan.name.toLowerCase() === normalizedPlanId ||
+      plan.type.toLowerCase() === normalizedPlanId,
+    );
+
+    return this.prisma.plan.findFirst({
+      where: {
+        isActive: true,
+        OR: [
+          { id: planId },
+          { name: { equals: planId, mode: 'insensitive' } },
+          ...(defaultPlan
+            ? [
+                { name: defaultPlan.name },
+                { type: defaultPlan.type },
+              ]
+            : []),
+        ],
+      },
+    });
+  }
+
+  private async ensureDefaultPlans() {
+    for (const plan of this.defaultPlans) {
+      await this.prisma.plan.upsert({
+        where: { name: plan.name },
+        update: {
+          price: plan.price,
+          type: plan.type,
+          description: plan.description,
+          durationDays: plan.durationDays,
+          maxSponsoredGroups: plan.maxSponsoredGroups,
+          isActive: true,
+        },
+        create: {
+          name: plan.name,
+          price: plan.price,
+          type: plan.type,
+          description: plan.description,
+          durationDays: plan.durationDays,
+          maxSponsoredGroups: plan.maxSponsoredGroups,
+          isActive: true,
+        },
+      });
     }
   }
 

@@ -215,38 +215,58 @@ let GroupsService = GroupsService_1 = class GroupsService {
     async findPending(page = 1, limit = 10) {
         console.log('[GroupsService] findPending called - page:', page, 'limit:', limit);
         const skip = (page - 1) * limit;
-        const groups = await this.prisma.group.findMany({
-            where: { status: 'PENDING' },
-            include: {
-                createdBy: { select: { id: true, name: true, email: true } },
-                category: true,
-                memberships: true,
-            },
-            skip,
-            take: limit,
-            orderBy: { createdAt: 'asc' },
-        });
+        const [groups, total] = await Promise.all([
+            this.prisma.group.findMany({
+                where: { status: 'PENDING' },
+                include: {
+                    createdBy: { select: { id: true, name: true, email: true } },
+                    category: true,
+                    memberships: true,
+                },
+                skip,
+                take: limit,
+                orderBy: { createdAt: 'asc' },
+            }),
+            this.prisma.group.count({ where: { status: 'PENDING' } }),
+        ]);
         console.log('[GroupsService] Found pending groups:', groups.length);
-        return groups;
+        return {
+            data: groups,
+            total,
+            page,
+            limit,
+            pages: Math.ceil(total / limit),
+        };
     }
     async findAll(status, page = 1, limit = 10) {
         const skip = (page - 1) * limit;
         const where = {};
-        if (status && ['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED'].includes(status)) {
-            where.status = status;
+        const normalizedStatus = status?.toUpperCase();
+        if (normalizedStatus && ['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED'].includes(normalizedStatus)) {
+            where.status = normalizedStatus;
         }
-        return this.prisma.group.findMany({
-            where,
-            include: {
-                createdBy: { select: { id: true, name: true, email: true } },
-                reviewedBy: { select: { id: true, name: true, email: true } },
-                category: true,
-                memberships: true,
-            },
-            skip,
-            take: limit,
-            orderBy: { createdAt: 'desc' },
-        });
+        const [groups, total] = await Promise.all([
+            this.prisma.group.findMany({
+                where,
+                include: {
+                    createdBy: { select: { id: true, name: true, email: true } },
+                    reviewedBy: { select: { id: true, name: true, email: true } },
+                    category: true,
+                    memberships: true,
+                },
+                skip,
+                take: limit,
+                orderBy: { createdAt: 'desc' },
+            }),
+            this.prisma.group.count({ where }),
+        ]);
+        return {
+            data: groups,
+            total,
+            page,
+            limit,
+            pages: Math.ceil(total / limit),
+        };
     }
     async approveGroup(groupId, adminId) {
         const group = await this.prisma.group.findUnique({ where: { id: groupId } });
