@@ -37,6 +37,7 @@ export class AdminService {
   }
 
   async getGroups(status?: string) {
+    console.log('[AdminService] getGroups called - status:', status);
     const where: any = {};
     
     if (status) {
@@ -51,6 +52,7 @@ export class AdminService {
       where.status = normalizedStatus;
     }
 
+    console.log('[AdminService] Querying groups with where:', where);
     const groups = await this.prisma.group.findMany({
       where,
       include: {
@@ -59,6 +61,7 @@ export class AdminService {
         _count: { select: { memberships: true } },
       },
     });
+    console.log('[AdminService] Found groups:', groups.length);
 
     return {
       data: groups,
