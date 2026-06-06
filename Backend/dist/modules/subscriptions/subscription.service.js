@@ -58,7 +58,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             where: { id: subscriptionId },
             include: {
                 plan: true,
-                user: { select: { id: true, name: true, email: true, credit: true } },
+                user: { select: { id: true, name: true, email: true } },
                 group: { select: { id: true, name: true } },
             },
         });
@@ -70,19 +70,6 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         if (status === 'APPROVED' && existingSubscription.plan) {
             const now = new Date();
             expiresAt = new Date(now.getTime() + existingSubscription.plan.durationDays * 24 * 60 * 60 * 1000);
-            // Add credits based on plan type
-            const creditsToAdd = this.getCreditsForPlan(existingSubscription.plan.type);
-            if (creditsToAdd > 0) {
-                await this.prisma.user.update({
-                    where: { id: existingSubscription.userId },
-                    data: {
-                        credit: {
-                            increment: creditsToAdd,
-                        },
-                    },
-                });
-                this.logger.log(`✅ Added ${creditsToAdd} credits to user ${existingSubscription.userId} for plan ${existingSubscription.plan.name}`);
-            }
         }
         const subscription = await this.prisma.subscription.update({
             where: { id: subscriptionId },
@@ -95,13 +82,12 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         });
         // Send email notification when subscription is approved
         if (status === 'APPROVED' && existingSubscription.user?.email) {
-            const creditsToAdd = this.getCreditsForPlan(existingSubscription.plan?.type || '');
             const subject = existingSubscription.group
                 ? `✅ Patrocínio aprovado para "${existingSubscription.group.name}"!`
                 : `✅ Seu plano premium foi ativado!`;
             const message = existingSubscription.group
                 ? `Seu grupo "${existingSubscription.group.name}" agora está patrocinado por ${existingSubscription.plan?.durationDays} dias!`
-                : `Sua assinatura premium está ativa! Você recebeu ${creditsToAdd} créditos e pode patrocinar até ${existingSubscription.plan?.maxSponsoredGroups} grupos.`;
+                : `Sua assinatura premium está ativa! Você pode patrocinar até ${existingSubscription.plan?.maxSponsoredGroups} grupos.`;
             try {
                 await this.mailService.sendSubscriptionApprovedEmail(existingSubscription.user.email, subject, message, existingSubscription.plan?.name || 'Seu plano');
                 this.logger.log(`✅ Email de aprovação enviado para ${existingSubscription.user.email}`);
@@ -116,10 +102,6 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             this.logger.warn(`Usuário ${existingSubscription.userId} não tem email, pulando envio de email de aprovação de assinatura`);
         }
         return subscription;
-    }
-    getCreditsForPlan(planType) {
-        // All plans give 1 credit
-        return 1;
     }
     async getSubscriptions(userId) {
         return await this.prisma.subscription.findMany({
