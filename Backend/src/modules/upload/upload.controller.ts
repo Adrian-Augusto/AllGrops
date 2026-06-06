@@ -1,13 +1,13 @@
 import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, HttpCode, HttpStatus } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiConsumes, ApiBody } from '@nestjs/swagger';
-import * as path from 'path';
-import * as fs from 'fs';
-import { v4 as uuid } from 'uuid';
+import { UploadService } from '../../common/services/upload.service';
 
 @ApiTags('upload')
 @Controller('upload')
 export class UploadController {
+  constructor(private readonly uploadService: UploadService) {}
+
   @Post('group-photo')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('photo'))
@@ -24,20 +24,14 @@ export class UploadController {
       },
     },
   })
-  uploadGroupPhoto(@UploadedFile() file: Express.Multer.File) {
+  async uploadGroupPhoto(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Nenhuma foto foi enviada');
     }
 
-    // Validar tipo de arquivo e obter extensão correspondente de forma segura
-    const allowedMimes: Record<string, string> = {
-      'image/jpeg': '.jpg',
-      'image/png': '.png',
-      'image/webp': '.webp',
-    };
-
-    const fileExt = allowedMimes[file.mimetype];
-    if (!fileExt) {
+    // Validar tipo de arquivo
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedMimes.includes(file.mimetype)) {
       throw new BadRequestException('Apenas JPG, PNG e WebP são permitidos');
     }
 
@@ -47,27 +41,14 @@ export class UploadController {
       throw new BadRequestException('Foto não pode exceder 5MB');
     }
 
-    // Gerar nome único usando a extensão segura derivada do mimetype
-    const fileName = `${uuid()}${fileExt}`;
-    const filePath = path.join(process.cwd(), 'uploads', 'groups', fileName);
-
-    // Criar diretório se não existir
-    const uploadsDir = path.join(process.cwd(), 'uploads', 'groups');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    // Salvar arquivo
-    fs.writeFileSync(filePath, file.buffer);
-
-    // Retornar URL relativa
-    const photoUrl = `uploads/groups/${fileName}`;
+    // Converter buffer para base64 e upload para Cloudinary
+    const base64String = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    const photoUrl = await this.uploadService.uploadBase64Image(base64String, 'groups');
 
     return {
       success: true,
       message: 'Foto enviada com sucesso',
       photoUrl,
-      fullUrl: `https://allgrops.onrender.com/${photoUrl}`,
     };
   }
 }
