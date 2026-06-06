@@ -36,6 +36,16 @@ export class UploadService {
         return base64String;
       }
 
+      // Check if Cloudinary is configured
+      const cloudName = this.configService.get('CLOUDINARY_CLOUD_NAME');
+      const apiKey = this.configService.get('CLOUDINARY_API_KEY');
+      const apiSecret = this.configService.get('CLOUDINARY_API_SECRET');
+
+      if (!cloudName || !apiKey || !apiSecret) {
+        this.logger.error('Cloudinary credentials not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.');
+        throw new BadRequestException('Cloudinary not configured. Please contact administrator.');
+      }
+
       const match = base64String.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,(.+)$/);
       if (!match) {
         this.logger.error('Invalid image format');
