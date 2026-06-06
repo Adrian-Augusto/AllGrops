@@ -46,6 +46,8 @@ export class UploadService {
         throw new BadRequestException('Cloudinary not configured. Please contact administrator.');
       }
 
+      this.logger.log(`Cloudinary configured - cloud_name: ${cloudName}`);
+
       const match = base64String.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,(.+)$/);
       if (!match) {
         this.logger.error('Invalid image format');
@@ -79,7 +81,11 @@ export class UploadService {
           },
           (error: any, result: any) => {
             if (error) {
-              this.logger.error('Cloudinary upload error:', error);
+              this.logger.error('Cloudinary upload error:', {
+                message: error.message,
+                code: error.code,
+                http_code: error.http_code,
+              });
               reject(error);
             } else {
               this.logger.log('Cloudinary upload successful');
@@ -92,7 +98,10 @@ export class UploadService {
       this.logger.log(`Image uploaded to Cloudinary: ${result.secure_url}`);
       return result.secure_url;
     } catch (error) {
-      this.logger.error('Error uploading image to Cloudinary:', error);
+      this.logger.error('Error uploading image to Cloudinary:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       throw new BadRequestException('Erro ao fazer upload da imagem');
     }
   }
