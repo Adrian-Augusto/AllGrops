@@ -9,22 +9,36 @@ export class UploadService {
   private readonly logger = new Logger(UploadService.name);
 
   constructor(private configService: ConfigService) {
+    const cloudName = this.configService.get('CLOUDINARY_CLOUD_NAME');
+    const apiKey = this.configService.get('CLOUDINARY_API_KEY');
+    const apiSecret = this.configService.get('CLOUDINARY_API_SECRET');
+
+    this.logger.log(`Cloudinary config - cloud_name: ${cloudName}, api_key: ${apiKey ? 'configured' : 'not configured'}, api_secret: ${apiSecret ? 'configured' : 'not configured'}`);
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      this.logger.error('Cloudinary credentials not configured properly');
+    }
+
     cloudinary.config({
-      cloud_name: this.configService.get('CLOUDINARY_CLOUD_NAME'),
-      api_key: this.configService.get('CLOUDINARY_API_KEY'),
-      api_secret: this.configService.get('CLOUDINARY_API_SECRET'),
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
     });
   }
 
   async uploadBase64Image(base64String: string, folder: string = 'groups'): Promise<string> {
     try {
+      this.logger.log(`Starting image upload to Cloudinary, folder: ${folder}, string length: ${base64String?.length || 0}`);
+
       // Check if it's already a URL
       if (!base64String?.startsWith('data:image/')) {
+        this.logger.log('Image is already a URL, skipping upload');
         return base64String;
       }
 
       const match = base64String.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,(.+)$/);
       if (!match) {
+        this.logger.error('Invalid image format');
         throw new BadRequestException('Formato da foto inválido');
       }
 
@@ -33,11 +47,15 @@ export class UploadService {
       const buffer = Buffer.from(base64, 'base64');
       const maxSize = 5 * 1024 * 1024;
 
+      this.logger.log(`Image details - mime: ${mime}, buffer size: ${buffer.length} bytes`);
+
       if (buffer.length > maxSize) {
+        this.logger.error(`Image too large: ${buffer.length} bytes`);
         throw new BadRequestException('Foto não pode exceder 5MB');
       }
 
       // Upload to Cloudinary
+      this.logger.log('Starting Cloudinary upload...');
       const result = await new Promise<any>((resolve, reject) => {
         cloudinary.uploader.upload(
           `data:${mime};base64,${base64}`,
@@ -51,8 +69,10 @@ export class UploadService {
           },
           (error: any, result: any) => {
             if (error) {
+              this.logger.error('Cloudinary upload error:', error);
               reject(error);
             } else {
+              this.logger.log('Cloudinary upload successful');
               resolve(result);
             }
           },

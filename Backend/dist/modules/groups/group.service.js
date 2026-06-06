@@ -243,10 +243,15 @@ let GroupsService = GroupsService_1 = class GroupsService {
         };
     }
     async normalizeGroupPhotoUrl(photoUrl) {
+        console.log('[GroupsService] normalizeGroupPhotoUrl called, photoUrl starts with data:image:', photoUrl?.startsWith('data:image/'));
         if (!photoUrl?.startsWith('data:image/')) {
+            console.log('[GroupsService] Photo is not base64, returning as-is');
             return photoUrl;
         }
-        return await this.uploadService.uploadBase64Image(photoUrl, 'groups');
+        console.log('[GroupsService] Uploading base64 image to Cloudinary...');
+        const uploadedUrl = await this.uploadService.uploadBase64Image(photoUrl, 'groups');
+        console.log('[GroupsService] Image uploaded, URL:', uploadedUrl);
+        return uploadedUrl;
     }
     async findAll(status, page = 1, limit = 10) {
         const skip = (page - 1) * limit;
