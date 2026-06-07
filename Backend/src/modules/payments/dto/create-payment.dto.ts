@@ -11,6 +11,15 @@ export class CreatePaymentDto {
   planId: string;
 
   @ApiProperty({
+    description: 'ID do grupo específico para patrocinar (opcional - se não informado, será plano premium para todos os grupos)',
+    example: 'g1a2b3c4d5e6',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  groupId?: string;
+
+  @ApiProperty({
     description: 'Chave de idempotência para prevenir duplicatas',
     example: 'user-123-1234567890',
     required: false,

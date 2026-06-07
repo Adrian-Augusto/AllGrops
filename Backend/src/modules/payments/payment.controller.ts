@@ -54,6 +54,7 @@ export class PaymentsController {
     return this.paymentsService.createPreference({
       userId: user.id,
       planId: dto.planId,
+      groupId: dto.groupId,
       idempotencyKey: dto.idempotencyKey,
     });
   }
