@@ -82,6 +82,15 @@ export class SubscriptionsService {
       },
     });
 
+    // Set isFeatured: true on group when subscription is approved and has groupId
+    if (status === 'APPROVED' && existingSubscription.groupId) {
+      await this.prisma.group.update({
+        where: { id: existingSubscription.groupId },
+        data: { isFeatured: true },
+      });
+      this.logger.log(`✅ Grupo ${existingSubscription.groupId} marcado como patrocinado (isFeatured: true)`);
+    }
+
     // Send email notification when subscription is approved
     if (status === 'APPROVED' && existingSubscription.user?.email) {
       const subject = existingSubscription.group 
