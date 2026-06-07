@@ -13,7 +13,7 @@ export class UploadService {
     const apiKey = this.configService.get('CLOUDINARY_API_KEY');
     const apiSecret = this.configService.get('CLOUDINARY_API_SECRET');
 
-    this.logger.log(`Cloudinary config - cloud_name: ${cloudName}, api_key: ${apiKey ? 'configured' : 'not configured'}, api_secret: ${apiSecret ? 'configured' : 'not configured'}`);
+    this.logger.log(`Cloudinary config - cloud_name: ${cloudName}, api_key: ${apiKey ? 'configured' : 'not configured'}, api_secret: ${apiSecret ? 'configured (length: ' + apiSecret.length + ')' : 'not configured'}`);
 
     if (!cloudName || !apiKey || !apiSecret) {
       this.logger.error('Cloudinary credentials not configured properly');
@@ -21,9 +21,10 @@ export class UploadService {
 
     try {
       cloudinary.config({
-        cloud_name: cloudName,
-        api_key: apiKey,
-        api_secret: apiSecret,
+        cloud_name: cloudName?.trim(),
+        api_key: apiKey?.trim(),
+        api_secret: apiSecret?.trim(),
+        secure: true,
       });
       this.logger.log('Cloudinary configured successfully');
     } catch (error) {
