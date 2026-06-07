@@ -73,10 +73,12 @@ export class PaymentsService {
     userId,
     planId,
     groupId,
+    idempotencyKey,
   }: {
     userId: string;
     planId: string;
     groupId?: string;
+    idempotencyKey?: string;
   }) {
     console.log('[PaymentsService] createPreference called - userId:', userId, 'planId:', planId, 'groupId:', groupId, 'idempotencyKey:', idempotencyKey);
 
