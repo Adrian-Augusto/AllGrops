@@ -54,7 +54,7 @@ export class SubscriptionsService {
     // Fetch subscription to get planId for expiration calculation
     const existingSubscription = await this.prisma.subscription.findUnique({
       where: { id: subscriptionId },
-      include: {
+      include: { 
         plan: true,
         user: { select: { id: true, name: true, email: true } },
         group: { select: { id: true, name: true } },
@@ -84,14 +84,14 @@ export class SubscriptionsService {
 
     // Send email notification when subscription is approved
     if (status === 'APPROVED' && existingSubscription.user?.email) {
-      const subject = existingSubscription.group
+      const subject = existingSubscription.group 
         ? `✅ Patrocínio aprovado para "${existingSubscription.group.name}"!`
         : `✅ Seu plano premium foi ativado!`;
-
+      
       const message = existingSubscription.group
         ? `Seu grupo "${existingSubscription.group.name}" agora está patrocinado por ${existingSubscription.plan?.durationDays} dias!`
         : `Sua assinatura premium está ativa! Você pode patrocinar até ${existingSubscription.plan?.maxSponsoredGroups} grupos.`;
-
+      
       try {
         await this.mailService.sendSubscriptionApprovedEmail(
           existingSubscription.user.email,
@@ -105,8 +105,6 @@ export class SubscriptionsService {
         this.logger.error(`❌ Erro ao enviar email de aprovação de assinatura: ${msg}`);
         // Continue processing even if email fails
       }
-    } else if (status === 'APPROVED' && !existingSubscription.user?.email) {
-      this.logger.warn(`Usuário ${existingSubscription.userId} não tem email, pulando envio de email de aprovação de assinatura`);
     }
 
     return subscription;
