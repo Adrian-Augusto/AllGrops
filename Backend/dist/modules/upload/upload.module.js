@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const upload_controller_1 = require("./upload.controller");
 const image_proxy_controller_1 = require("./image-proxy.controller");
+const upload_service_1 = require("../../common/services/upload.service");
 let UploadModule = class UploadModule {
 };
 exports.UploadModule = UploadModule;
@@ -22,5 +23,7 @@ exports.UploadModule = UploadModule = __decorate([
             }),
         ],
         controllers: [upload_controller_1.UploadController, image_proxy_controller_1.ImagesController],
+        providers: [upload_service_1.UploadService],
+        exports: [upload_service_1.UploadService],
     })
 ], UploadModule);

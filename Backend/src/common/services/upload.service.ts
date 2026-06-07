@@ -74,10 +74,6 @@ export class UploadService {
           {
             folder: `allgrops/${folder}`,
             resource_type: 'image',
-            transformation: [
-              { width: 800, height: 800, crop: 'limit' },
-              { quality: 'auto' },
-            ],
           },
           (error: any, result: any) => {
             if (error) {
