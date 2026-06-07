@@ -24,9 +24,6 @@ const class_validator_1 = require("class-validator");
 class RegisterDto {
     name;
     email;
-    // Note: @IsStrongPassword would require special chars, upper, lower, numbers
-    // For production, uncomment the line below for stronger passwords
-    // @IsStrongPassword()
     password;
 }
 __decorate([
@@ -48,11 +45,14 @@ __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.MinLength)(8, { message: 'Password must be at least 8 characters' }),
-    (0, class_validator_1.MaxLength)(128, { message: 'Password must not exceed 128 characters' })
-    // Note: @IsStrongPassword would require special chars, upper, lower, numbers
-    // For production, uncomment the line below for stronger passwords
-    // @IsStrongPassword()
-    ,
+    (0, class_validator_1.MaxLength)(128, { message: 'Password must not exceed 128 characters' }),
+    (0, class_validator_1.IsStrongPassword)({
+        minLength: 8,
+        minLowercase: 1,
+        minUppercase: 1,
+        minNumbers: 1,
+        minSymbols: 1,
+    }, { message: 'Password must contain uppercase, lowercase, numbers and symbols' }),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "password", void 0);
 class LoginDto {
@@ -174,19 +174,18 @@ let AuthController = AuthController_1 = class AuthController {
                     this.logger.warn(`Falha ao ler parâmetro state do OAuth: ${errorMsg}`);
                 }
             }
-            // Retornar o token JWT diretamente na URL para o frontend armazenar
-            // O token será salvo em sessionStorage pelo frontend
-            const token = result.accessToken;
-            // Set HttpOnly cookie (para requisições que não enviam Bearer token)
-            res.cookie('accessToken', token, {
+            // Generate temporary one-time code instead of exposing token in URL
+            const tempCode = this.authService.generateTempCode(result);
+            // Set HttpOnly cookie (for requests that don't send Bearer token)
+            res.cookie('accessToken', result.accessToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
                 maxAge: 3600000, // 1 hora
                 path: '/',
             });
-            // Redirecionar para o frontend com o token na URL
-            return res.redirect(`${targetRedirectUrl}?token=${token}`);
+            // Redirect to frontend with temporary code (not exposing token in URL)
+            return res.redirect(`${targetRedirectUrl}?code=${tempCode}`);
         }
         catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);

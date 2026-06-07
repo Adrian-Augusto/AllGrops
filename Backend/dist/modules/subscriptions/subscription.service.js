@@ -98,9 +98,6 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
                 // Continue processing even if email fails
             }
         }
-        else if (status === 'APPROVED' && !existingSubscription.user?.email) {
-            this.logger.warn(`Usuário ${existingSubscription.userId} não tem email, pulando envio de email de aprovação de assinatura`);
-        }
         return subscription;
     }
     async getSubscriptions(userId) {

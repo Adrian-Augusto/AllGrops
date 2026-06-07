@@ -25,9 +25,13 @@ class RegisterDto {
   @IsNotEmpty()
   @MinLength(8, { message: 'Password must be at least 8 characters' })
   @MaxLength(128, { message: 'Password must not exceed 128 characters' })
-  // Note: @IsStrongPassword would require special chars, upper, lower, numbers
-  // For production, uncomment the line below for stronger passwords
-  // @IsStrongPassword()
+  @IsStrongPassword({
+    minLength: 8,
+    minLowercase: 1,
+    minUppercase: 1,
+    minNumbers: 1,
+    minSymbols: 1,
+  }, { message: 'Password must contain uppercase, lowercase, numbers and symbols' })
   password: string;
 }
 
@@ -171,12 +175,11 @@ export class AuthController {
         }
       }
 
-      // Retornar o token JWT diretamente na URL para o frontend armazenar
-      // O token será salvo em sessionStorage pelo frontend
-      const token = result.accessToken;
+      // Generate temporary one-time code instead of exposing token in URL
+      const tempCode = this.authService.generateTempCode(result);
 
-      // Set HttpOnly cookie (para requisições que não enviam Bearer token)
-      res.cookie('accessToken', token, {
+      // Set HttpOnly cookie (for requests that don't send Bearer token)
+      res.cookie('accessToken', result.accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
@@ -184,8 +187,8 @@ export class AuthController {
         path: '/',
       });
 
-      // Redirecionar para o frontend com o token na URL
-      return res.redirect(`${targetRedirectUrl}?token=${token}`);
+      // Redirect to frontend with temporary code (not exposing token in URL)
+      return res.redirect(`${targetRedirectUrl}?code=${tempCode}`);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Google OAuth callback error: ${errorMsg}`, error instanceof Error ? error.stack : '');

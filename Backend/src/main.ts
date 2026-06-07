@@ -251,9 +251,30 @@ async function bootstrap() {
     skip: (req) => req.method === 'OPTIONS', // Skip OPTIONS requests
   });
 
+  // ✅ SECURITY: Rate limiters for auth routes (prevent brute force attacks)
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: process.env.NODE_ENV === 'production' ? 5 : 100, // 5 attempts per 15 minutes in prod
+    message: 'Too many login attempts, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS' || process.env.NODE_ENV !== 'production',
+  });
+
+  const registerLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: process.env.NODE_ENV === 'production' ? 3 : 100, // 3 registrations per hour in prod
+    message: 'Too many registration attempts, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS' || process.env.NODE_ENV !== 'production',
+  });
+
   // Apply rate limiters to specific routes
   app.use('/api/v1/payments/create', paymentLimiter);
   app.use('/api/v1/payments/webhook', webhookLimiter);
+  app.use('/api/v1/auth/login', authLimiter);
+  app.use('/api/v1/auth/register', registerLimiter);
 
   // Middleware specific to /uploads with CORS
   app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {

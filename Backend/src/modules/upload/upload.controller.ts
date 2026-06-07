@@ -41,6 +41,21 @@ export class UploadController {
       throw new BadRequestException('Foto não pode exceder 5MB');
     }
 
+    // ✅ SECURITY: Validar magic bytes para prevenir upload de arquivos maliciosos
+    try {
+      const fileType = await import('file-type');
+      const type = await fileType.fileTypeFromBuffer(file.buffer);
+      if (!type || !allowedMimes.includes(type.mime)) {
+        throw new BadRequestException('Arquivo inválido - o tipo de arquivo não corresponde ao conteúdo. Apenas JPG, PNG e WebP são permitidos.');
+      }
+    } catch (error) {
+      // Se falhar validação de magic bytes, rejeitar arquivo
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Erro ao validar arquivo');
+    }
+
     // Converter buffer para base64 e upload para Cloudinary
     const base64String = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
     const photoUrl = await this.uploadService.uploadBase64Image(base64String, 'groups');
