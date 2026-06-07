@@ -72,13 +72,13 @@ export class PaymentsService {
   async createPreference({
     userId,
     planId,
-    idempotencyKey,
+    groupId,
   }: {
     userId: string;
     planId: string;
-    idempotencyKey?: string;
+    groupId?: string;
   }) {
-    console.log('[PaymentsService] createPreference called - userId:', userId, 'planId:', planId, 'idempotencyKey:', idempotencyKey);
+    console.log('[PaymentsService] createPreference called - userId:', userId, 'planId:', planId, 'groupId:', groupId, 'idempotencyKey:', idempotencyKey);
 
     try {
       // Generate or validate idempotency key
@@ -124,7 +124,7 @@ export class PaymentsService {
       console.log('[PaymentsService] Creating subscription...');
       const subscription = await this.subscriptionsService.createSubscription(
         userId,
-        '', // Empty groupId for premium subscription
+        groupId || '',
         plan.id,
       );
       console.log('[PaymentsService] Subscription created:', subscription.id);
@@ -416,6 +416,7 @@ export class PaymentsService {
     return safe;
   }
 }
+
 
 
 
