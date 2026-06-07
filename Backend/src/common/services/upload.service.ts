@@ -9,11 +9,16 @@ export class UploadService {
   private readonly logger = new Logger(UploadService.name);
 
   constructor(private configService: ConfigService) {
-    const cloudName = this.configService.get('CLOUDINARY_CLOUD_NAME');
-    const apiKey = this.configService.get('CLOUDINARY_API_KEY');
-    const apiSecret = this.configService.get('CLOUDINARY_API_SECRET');
+    const rawCloudName = this.configService.get('CLOUDINARY_CLOUD_NAME') || '';
+    const rawApiKey = this.configService.get('CLOUDINARY_API_KEY') || '';
+    const rawApiSecret = this.configService.get('CLOUDINARY_API_SECRET') || '';
 
-    this.logger.log(`Cloudinary config - cloud_name: ${cloudName}, api_key: ${apiKey ? 'configured' : 'not configured'}, api_secret: ${apiSecret ? 'configured (length: ' + apiSecret.length + ')' : 'not configured'}`);
+    // Remove espaços em branco e aspas (comum de acontecer ao copiar pro Render)
+    const cloudName = rawCloudName.trim().replace(/^["'](.*)["']$/, '$1');
+    const apiKey = rawApiKey.trim().replace(/^["'](.*)["']$/, '$1');
+    const apiSecret = rawApiSecret.trim().replace(/^["'](.*)["']$/, '$1');
+
+    this.logger.log(`Cloudinary config - cloud_name: ${cloudName}, api_key: ${apiKey ? 'configured' : 'not configured'}, api_secret: ${apiSecret ? `configured (starts with: ${apiSecret.substring(0, 2)}, ends with: ${apiSecret.substring(apiSecret.length - 2)}, length: ${apiSecret.length})` : 'not configured'}`);
 
     if (!cloudName || !apiKey || !apiSecret) {
       this.logger.error('Cloudinary credentials not configured properly');
@@ -21,9 +26,9 @@ export class UploadService {
 
     try {
       cloudinary.config({
-        cloud_name: cloudName?.trim(),
-        api_key: apiKey?.trim(),
-        api_secret: apiSecret?.trim(),
+        cloud_name: cloudName,
+        api_key: apiKey,
+        api_secret: apiSecret,
         secure: true,
       });
       this.logger.log('Cloudinary configured successfully');
@@ -43,9 +48,13 @@ export class UploadService {
       }
 
       // Check if Cloudinary is configured
-      const cloudName = this.configService.get('CLOUDINARY_CLOUD_NAME');
-      const apiKey = this.configService.get('CLOUDINARY_API_KEY');
-      const apiSecret = this.configService.get('CLOUDINARY_API_SECRET');
+      const rawCloudName = this.configService.get('CLOUDINARY_CLOUD_NAME') || '';
+      const rawApiKey = this.configService.get('CLOUDINARY_API_KEY') || '';
+      const rawApiSecret = this.configService.get('CLOUDINARY_API_SECRET') || '';
+
+      const cloudName = rawCloudName.trim().replace(/^["'](.*)["']$/, '$1');
+      const apiKey = rawApiKey.trim().replace(/^["'](.*)["']$/, '$1');
+      const apiSecret = rawApiSecret.trim().replace(/^["'](.*)["']$/, '$1');
 
       if (!cloudName || !apiKey || !apiSecret) {
         this.logger.error('Cloudinary credentials not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.');
