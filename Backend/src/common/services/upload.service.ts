@@ -19,11 +19,16 @@ export class UploadService {
       this.logger.error('Cloudinary credentials not configured properly');
     }
 
-    cloudinary.config({
-      cloud_name: cloudName,
-      api_key: apiKey,
-      api_secret: apiSecret,
-    });
+    try {
+      cloudinary.config({
+        cloud_name: cloudName,
+        api_key: apiKey,
+        api_secret: apiSecret,
+      });
+      this.logger.log('Cloudinary configured successfully');
+    } catch (error) {
+      this.logger.error('Error configuring Cloudinary:', error);
+    }
   }
 
   async uploadBase64Image(base64String: string, folder: string = 'groups'): Promise<string> {
@@ -68,31 +73,24 @@ export class UploadService {
 
       // Upload to Cloudinary
       this.logger.log('Starting Cloudinary upload...');
-      const result = await new Promise<any>((resolve, reject) => {
-        cloudinary.uploader.upload(
+      try {
+        const result = await cloudinary.uploader.upload(
           `data:${mime};base64,${base64}`,
           {
             folder: `allgrops/${folder}`,
             resource_type: 'image',
           },
-          (error: any, result: any) => {
-            if (error) {
-              this.logger.error('Cloudinary upload error:', {
-                message: error.message,
-                code: error.code,
-                http_code: error.http_code,
-              });
-              reject(error);
-            } else {
-              this.logger.log('Cloudinary upload successful');
-              resolve(result);
-            }
-          },
         );
-      });
-
-      this.logger.log(`Image uploaded to Cloudinary: ${result.secure_url}`);
-      return result.secure_url;
+        this.logger.log(`Cloudinary upload successful: ${result.secure_url}`);
+        return result.secure_url;
+      } catch (error: any) {
+        this.logger.error('Cloudinary upload error:', {
+          message: error.message,
+          code: error.code,
+          http_code: error.http_code,
+        });
+        throw error;
+      }
     } catch (error) {
       this.logger.error('Error uploading image to Cloudinary:', {
         error: error instanceof Error ? error.message : String(error),
