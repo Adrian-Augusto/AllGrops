@@ -82,13 +82,16 @@ export class UploadService {
       }
 
       // Upload to Cloudinary
-      this.logger.log('Starting Cloudinary upload...');
+      this.logger.log('Starting Cloudinary upload with explicit credentials...');
       try {
         const result = await cloudinary.uploader.upload(
           `data:${mime};base64,${base64}`,
           {
             folder: `allgrops/${folder}`,
             resource_type: 'image',
+            cloud_name: cloudName,
+            api_key: apiKey,
+            api_secret: apiSecret,
           },
         );
         this.logger.log(`Cloudinary upload successful: ${result.secure_url}`);
@@ -112,7 +115,19 @@ export class UploadService {
 
   async deleteImage(publicId: string): Promise<void> {
     try {
-      await cloudinary.uploader.destroy(publicId);
+      const rawCloudName = this.configService.get('CLOUDINARY_CLOUD_NAME') || '';
+      const rawApiKey = this.configService.get('CLOUDINARY_API_KEY') || '';
+      const rawApiSecret = this.configService.get('CLOUDINARY_API_SECRET') || '';
+
+      const cloudName = rawCloudName.trim().replace(/^["'](.*)["']$/, '$1');
+      const apiKey = rawApiKey.trim().replace(/^["'](.*)["']$/, '$1');
+      const apiSecret = rawApiSecret.trim().replace(/^["'](.*)["']$/, '$1');
+
+      await cloudinary.uploader.destroy(publicId, {
+        cloud_name: cloudName,
+        api_key: apiKey,
+        api_secret: apiSecret,
+      });
       this.logger.log(`Image deleted from Cloudinary: ${publicId}`);
     } catch (error) {
       this.logger.error('Error deleting image from Cloudinary:', error);
