@@ -61,7 +61,7 @@ export class UploadService {
         throw new BadRequestException('Cloudinary not configured. Please contact administrator.');
       }
 
-      this.logger.log(`Cloudinary configured - cloud_name: ${cloudName}`);
+      this.logger.log(`Cloudinary configured - cloud_name: ${cloudName}, api_key: ${apiKey ? apiKey.substring(0, 4) + '...' + apiKey.substring(apiKey.length - 4) : 'not configured'}, api_secret_length: ${apiSecret?.length}`);
 
       const match = base64String.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,(.+)$/);
       if (!match) {
