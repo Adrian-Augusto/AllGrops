@@ -41,8 +41,17 @@ export class UploadService {
     try {
       this.logger.log(`Starting image upload to Cloudinary, folder: ${folder}, string length: ${base64String?.length || 0}`);
 
-      // Check if it's already a URL
-      if (!base64String?.startsWith('data:image/')) {
+      // Validar protocolos e esquemas
+      if (base64String?.startsWith('data:')) {
+        if (!base64String.startsWith('data:image/')) {
+          this.logger.error('Data URI provided is not an image');
+          throw new BadRequestException('Formato da foto inválido');
+        }
+      } else {
+        if (base64String && !base64String.startsWith('http://') && !base64String.startsWith('https://')) {
+          this.logger.error('Invalid image URL protocol');
+          throw new BadRequestException('URL da foto inválida (apenas HTTP/HTTPS são permitidos)');
+        }
         this.logger.log('Image is already a URL, skipping upload');
         return base64String;
       }
@@ -83,11 +92,12 @@ export class UploadService {
 
       // Upload to Cloudinary
       this.logger.log('Starting Cloudinary upload with explicit credentials...');
+      const safeFolder = folder.replace(/[^a-zA-Z0-9_\-\/]/g, '').replace(/\.\.+/g, '');
       try {
         const result = await cloudinary.uploader.upload(
           `data:${mime};base64,${base64}`,
           {
-            folder: `allgrops/${folder}`,
+            folder: `allgrops/${safeFolder}`,
             resource_type: 'image',
             cloud_name: cloudName,
             api_key: apiKey,
