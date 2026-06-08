@@ -72,10 +72,10 @@ export function extractPaymentDataFromEvent(event: Stripe.Event): {
         const session = event.data.object as Stripe.Checkout.Session;
         stripePaymentId = session.payment_intent as string;
         status = 'complete';
-        customerEmail = session.customer_details?.email;
+        customerEmail = session.customer_details?.email || undefined;
         amount = session.amount_total ? session.amount_total / 100 : undefined;
         currency = session.currency?.toUpperCase();
-        stripeCustomerId = session.customer as string;
+        stripeCustomerId = session.customer as string | undefined;
         break;
 
       case 'payment_intent.succeeded':
