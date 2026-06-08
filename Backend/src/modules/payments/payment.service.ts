@@ -163,6 +163,13 @@ export class PaymentsService {
           email: process.env.MERCADO_PAGO_PAYER_EMAIL || 'noreply@allgrops.com',
         },
         external_reference: externalReference,
+        metadata: {
+          userId,
+          planId: plan.id,
+          groupId: groupId || '',
+          subscriptionId: subscription.id,
+        },
+        statement_descriptor: 'AllGrops - Destaque de Grupos',
         back_urls: {
           success: `${frontendUrl}/pagamento/sucesso`,
           failure: `${frontendUrl}/pagamento/falha`,
@@ -271,6 +278,18 @@ export class PaymentsService {
       const mappedStatus = PAYMENT_STATUS_MAP[paymentData.status] || 'REJECTED';
       const externalReference = paymentData.external_reference as string;
 
+      // Extract metadata from payment
+      const metadata = paymentData.metadata || {};
+      const metadataGroupId = metadata.groupId;
+      const metadataUserId = metadata.userId;
+      const metadataSubscriptionId = metadata.subscriptionId;
+
+      console.log('[PaymentsService] Webhook metadata:', {
+        groupId: metadataGroupId,
+        userId: metadataUserId,
+        subscriptionId: metadataSubscriptionId,
+      });
+
       safeLogPaymentInfo(paymentId, mappedStatus, 'Webhook processed');
 
       // Associate Mercado Pago payment ID and update payment status in database
@@ -288,6 +307,7 @@ export class PaymentsService {
         externalReference,
         String(paymentId),
         mappedStatus as 'APPROVED' | 'REJECTED' | 'PENDING',
+        metadataGroupId,
       );
 
       // Record webhook processing for idempotency

@@ -46,6 +46,7 @@ export class SubscriptionsService {
     externalReference: string,
     paymentId: string,
     status: 'APPROVED' | 'REJECTED' | 'PENDING',
+    metadataGroupId?: string,
   ) {
     // external_reference: userId:planId:subscriptionId
     const parts = externalReference.split(':');
@@ -79,6 +80,8 @@ export class SubscriptionsService {
         paymentId,
         isActive: status === 'APPROVED',
         expiresAt,
+        // Update groupId from metadata if provided and different
+        ...(metadataGroupId && existingSubscription.groupId !== metadataGroupId ? { groupId: metadataGroupId } : {}),
       },
     });
 
