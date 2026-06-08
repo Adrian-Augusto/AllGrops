@@ -24,8 +24,8 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   /**
-   * Create payment preference in Mercado Pago
-   * Returns only init_point URL for checkout
+   * Create Stripe Checkout Session
+   * Returns checkout URL for payment
    */
   @Post('create')
   @UseGuards(JwtAuthGuard)
@@ -34,15 +34,15 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Create payment',
     description:
-      'Creates a payment preference for group highlighting. Returns Mercado Pago checkout link.',
+      'Creates a Stripe Checkout Session for group highlighting. Returns Stripe checkout link.',
   })
   @ApiResponse({
     status: 201,
-    description: 'Payment preference created',
+    description: 'Checkout session created',
     schema: {
       example: {
-        init_point: 'https://www.mercadopago.com.br/checkout/v1/...',
-        preference_id: 'payment-id',
+        checkout_url: 'https://checkout.stripe.com/c/pay/...',
+        session_id: 'cs_test_...',
         idempotency_key: 'key',
       },
     },
@@ -60,15 +60,15 @@ export class PaymentsController {
   }
 
   /**
-   * Mercado Pago Webhook Handler
+   * Stripe Webhook Handler
    * Receives payment status notifications
    * Does not require authentication
    */
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Mercado Pago webhook',
-    description: 'Receives payment status notifications from Mercado Pago',
+    summary: 'Stripe webhook',
+    description: 'Receives payment status notifications from Stripe',
   })
   @ApiResponse({
     status: 200,
@@ -76,16 +76,12 @@ export class PaymentsController {
     schema: { example: { success: true } },
   })
   async handleWebhook(
-    @Body() body: PaymentWebhookDto,
-    @Headers('x-signature') xSignature?: string,
-    @Headers('x-request-id') xRequestId?: string,
+    @Body() body: any,
+    @Headers('stripe-signature') stripeSignature?: string,
   ) {
-    // For production, validate webhook signature
-    // This example assumes MP validation will be added when secret is available
     return this.paymentsService.handleWebhook(
       body,
-      xSignature,
-      xRequestId,
+      stripeSignature,
     );
   }
 
