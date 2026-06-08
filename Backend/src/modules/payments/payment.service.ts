@@ -15,7 +15,7 @@ export class PaymentsService {
     {
       slug: 'three-days',
       name: '3 Days Sponsored',
-      price: 0.1,
+      price: 0.50,
       type: 'SPONSORED_3_DAYS' as const,
       description: 'Sponsor your group for 3 days',
       durationDays: 3,
