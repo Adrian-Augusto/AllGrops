@@ -92,6 +92,7 @@ export class SubscriptionsService {
         data: { isFeatured: true },
       });
       this.logger.log(`✅ Grupo ${existingSubscription.groupId} marcado como patrocinado (isFeatured: true)`);
+      console.log(`[SubscriptionsService] Grupo ${existingSubscription.groupId} (${existingSubscription.group?.name}) marcado como patrocinado`);
     }
 
     // Send email notification when subscription is approved

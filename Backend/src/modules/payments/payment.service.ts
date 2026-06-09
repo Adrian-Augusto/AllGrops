@@ -264,6 +264,8 @@ export class PaymentsService {
         groupId: metadataGroupId,
         userId: metadataUserId,
         subscriptionId: metadataSubscriptionId,
+        paymentStatus: paymentData.status,
+        mappedStatus,
       });
 
       safeLogPaymentInfo(paymentId, mappedStatus, 'Webhook processed');
