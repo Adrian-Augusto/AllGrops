@@ -13,7 +13,7 @@ export function validateMercadoPagoSignature(
   xSignature: string | string[] | undefined,
   xRequestId: string | string[] | undefined,
   body: string,
-  accessToken: string,
+  secret: string,
 ): boolean {
   if (!xSignature || !xRequestId) {
     logger.warn('Missing signature headers');
@@ -24,23 +24,43 @@ export function validateMercadoPagoSignature(
   const requestIdHeader = Array.isArray(xRequestId) ? xRequestId[0] : xRequestId;
 
   try {
-    // Mercado Pago uses: SHA256(request_id + access_token + request_body)
-    const computedSignature = crypto
-      .createHash('sha256')
-      .update(`${requestIdHeader}${accessToken}${body}`)
-      .digest('hex');
-
-    // Extract the signature from the header (format: "ts=timestamp, v1=signature")
+    // Extract ts and v1 from x-signature header (format: "ts=timestamp,v1=signature")
     const signatureParts = signatureHeader.split(',');
+    let ts = '';
     let receivedSignature = '';
 
     for (const part of signatureParts) {
       const [key, value] = part.trim().split('=');
-      if (key === 'v1') {
+      if (key === 'ts') {
+        ts = value;
+      } else if (key === 'v1') {
         receivedSignature = value;
-        break;
       }
     }
+
+    if (!ts || !receivedSignature) {
+      logger.warn('Invalid x-signature format');
+      return false;
+    }
+
+    // Parse body to extract data.id
+    let dataId = '';
+    try {
+      const bodyObj = JSON.parse(body);
+      dataId = bodyObj.data?.id || '';
+    } catch {
+      logger.warn('Failed to parse webhook body');
+      return false;
+    }
+
+    // Create signature template: id:[data.id];request-id:[x-request-id];ts:[ts];
+    const signatureTemplate = `id:${dataId};request-id:${requestIdHeader};ts:${ts};`;
+
+    // Calculate HMAC-SHA256 using secret as key and template as message
+    const computedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(signatureTemplate)
+      .digest('hex');
 
     const isValid = computedSignature === receivedSignature;
     if (!isValid) {
