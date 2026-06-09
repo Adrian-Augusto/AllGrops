@@ -76,7 +76,7 @@ export class PaymentsController {
     schema: { example: { success: true } },
   })
   async handleWebhook(
-    @Body() body: PaymentWebhookDto,
+    @Body() body: any,
     @Headers('x-signature') xSignature?: string,
     @Headers('x-request-id') xRequestId?: string,
   ) {

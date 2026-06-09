@@ -229,12 +229,27 @@ export class PaymentsService {
 
       // Validate event type
       const topic = body.type;
-      if (topic !== 'payment') {
+      const action = body.action;
+
+      // Accept both 'payment' and 'order' events
+      if (topic !== 'payment' && topic !== 'order') {
         this.logger.log(`Ignoring unsupported event type: ${topic}`);
         return { success: true }; // Return 200 OK even for unsupported events
       }
 
-      const paymentId = body.data?.id;
+      // Extract payment ID based on event type
+      let paymentId: string | undefined;
+      
+      if (topic === 'payment') {
+        paymentId = body.data?.id;
+      } else if (topic === 'order') {
+        // For order events, extract payment ID from transactions
+        const transactions = body.data?.transactions?.payments;
+        if (transactions && transactions.length > 0) {
+          paymentId = transactions[0].id;
+        }
+      }
+
       if (!paymentId) {
         this.logger.warn('Payment ID not found in webhook');
         return { success: true }; // Return 200 OK to avoid retries
