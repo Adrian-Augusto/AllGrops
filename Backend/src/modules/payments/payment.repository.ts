@@ -54,23 +54,11 @@ export class PaymentRepository {
     });
   }
 
-  async updatePaymentStatus(
-    paymentId: string,
-    stripePaymentId: string,
-    status: PaymentStatus,
-    customerEmail?: string,
-    amount?: number,
-    currency?: string,
-    stripeCustomerId?: string,
-  ) {
+  async updatePaymentStatus(paymentId: string, mercadoPagoId: string, status: PaymentStatus) {
     return this.prisma.payment.update({
       where: { id: paymentId },
       data: {
-        stripePaymentId,
-        customerEmail,
-        amount,
-        currency,
-        stripeCustomerId,
+        mercadoPagoId,
         status,
         webhookProcessed: true,
         updatedAt: new Date(),
@@ -78,9 +66,9 @@ export class PaymentRepository {
     });
   }
 
-  async findByStripePaymentId(stripePaymentId: string) {
+  async findByMercadoPagoId(mercadoPagoId: string) {
     return this.prisma.payment.findUnique({
-      where: { stripePaymentId },
+      where: { mercadoPagoId },
     });
   }
 
@@ -93,14 +81,14 @@ export class PaymentRepository {
 
   async hasProcessedWebhook(paymentId: string, webhookId: string): Promise<boolean> {
     const payment = await this.prisma.payment.findUnique({
-      where: { stripePaymentId: paymentId },
+      where: { mercadoPagoId: paymentId },
     });
     return payment?.lastWebhookId === webhookId;
   }
 
   async recordWebhookProcessing(paymentId: string, webhookId: string) {
     return this.prisma.payment.update({
-      where: { id: paymentId },
+      where: { mercadoPagoId: paymentId },
       data: {
         lastWebhookId: webhookId,
         updatedAt: new Date(),

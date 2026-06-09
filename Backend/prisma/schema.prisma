@@ -141,24 +141,19 @@ model Subscription {
 
 model Payment {
   id                String        @id @default(uuid())
-  stripePaymentId   String?       @unique
-  stripeCustomerId  String?
+  mercadoPagoId     String?       @unique
   subscriptionId    String        @unique
   status            PaymentStatus @default(PENDING)
   idempotencyKey    String        @unique
   webhookProcessed  Boolean       @default(false)
   lastWebhookId     String?
   externalReference String?
-  customerEmail     String?
-  amount            Float?
-  currency          String?       @default("BRL")
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   subscription      Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([subscriptionId])
-  @@index([stripePaymentId])
 }
 
 model Post {

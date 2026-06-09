@@ -1,21 +1,22 @@
 import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
 import { SubscriptionsService } from '../subscriptions/subscription.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaymentRepository } from './payment.repository';
-import { StripeService } from './stripe.service';
-import { safeLogPaymentInfo, extractPaymentDataFromEvent, shouldProcessEvent, isPaymentApproved } from './utils/stripe.utils';
-import { SAFE_LOG_FIELDS } from './utils/payment.constants';
+import { MercadoPagoService } from './mercado-pago.service';
+import { safeLogPaymentInfo, validateMercadoPagoSignature, mapMercadoPagoStatus } from './utils/mercado-pago.utils';
+import { PAYMENT_STATUS_MAP, SAFE_LOG_FIELDS } from './utils/payment.constants';
 
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
-  private readonly stripeService: StripeService;
+  private readonly mercadoPagoService: MercadoPagoService;
   private readonly defaultPlans = [
     {
       slug: 'three-days',
       name: '3 Days Sponsored',
-      price: 0.50,
+      price: 0.10,
       type: 'SPONSORED_3_DAYS' as const,
       description: 'Sponsor your group for 3 days',
       durationDays: 3,
@@ -55,12 +56,12 @@ export class PaymentsService {
     private prisma: PrismaService,
     private paymentRepository: PaymentRepository,
     private configService: ConfigService,
-    stripeService: StripeService,
+    mercadoPagoService: MercadoPagoService,
   ) {
-    this.stripeService = stripeService;
+    this.mercadoPagoService = mercadoPagoService;
     
-    if (!this.stripeService.isConfigured()) {
-      this.logger.warn('STRIPE_SECRET_KEY not configured');
+    if (!this.mercadoPagoService.isConfigured()) {
+      this.logger.warn('MERCADO_PAGO_ACCESS_TOKEN not configured');
     }
   }
 
@@ -88,21 +89,21 @@ export class PaymentsService {
         this.logger.log(`Duplicate payment request with key: ${key}`);
         console.log('[PaymentsService] Returning cached payment:', existingPayment.id);
         
-        let checkoutUrl = undefined;
-        const sessionId = existingPayment.subscription?.paymentId;
-        if (sessionId) {
+        let initPoint = undefined;
+        const preferenceId = existingPayment.subscription?.paymentId;
+        if (preferenceId) {
           try {
-            const session = await this.stripeService.getCheckoutSession(sessionId);
-            checkoutUrl = session.url;
+            const preference = await this.mercadoPagoService.getPreference(preferenceId);
+            initPoint = preference.init_point;
           } catch (e: any) {
-            this.logger.warn(`Failed to fetch session details from Stripe: ${e.message}`);
+            this.logger.warn(`Failed to fetch preference details from Mercado Pago: ${e.message}`);
           }
         }
 
         // Return cached result if already exists
         return {
-          checkout_url: checkoutUrl,
-          session_id: sessionId || undefined,
+          init_point: initPoint,
+          preference_id: preferenceId || undefined,
           status: existingPayment.status,
         };
       }
@@ -141,15 +142,18 @@ export class PaymentsService {
       }
       console.log('[PaymentsService] Payment record created:', paymentRecord.id);
 
-      // Create Stripe Checkout Session
+      // Create Mercado Pago preference
       const frontendUrl = process.env.FRONTEND_URL || 'https://allgrops.onrender.com';
-      console.log('[PaymentsService] Creating Stripe Checkout Session...');
+      const notificationUrl = this.getValidUrl(process.env.MERCADO_PAGO_WEBHOOK_URL);
+      console.log('[PaymentsService] Creating Mercado Pago preference...');
       
-      const { sessionId, checkoutUrl } = await this.stripeService.createCheckoutSession({
+      const { init_point, preference_id } = await this.mercadoPagoService.createPreference({
         planName: `${plan.name} - Plano Premium`,
         planPrice: plan.price,
         successUrl: `${frontendUrl}/pagamento/sucesso`,
-        cancelUrl: `${frontendUrl}/pagamento/falha`,
+        failureUrl: `${frontendUrl}/pagamento/falha`,
+        pendingUrl: `${frontendUrl}/pagamento/pendente`,
+        notificationUrl: notificationUrl || undefined,
         metadata: {
           userId,
           planId: plan.id,
@@ -159,19 +163,19 @@ export class PaymentsService {
         },
       });
 
-      console.log('[PaymentsService] Stripe Checkout Session created:', sessionId);
+      console.log('[PaymentsService] Mercado Pago preference created:', preference_id);
 
-      // Save session ID to subscription
+      // Save preference ID to subscription
       await this.prisma.subscription.update({
         where: { id: subscription.id },
-        data: { paymentId: sessionId },
+        data: { paymentId: preference_id },
       });
 
-      safeLogPaymentInfo(sessionId, 'PENDING', 'Checkout session created');
+      safeLogPaymentInfo(preference_id, 'PENDING', 'Preference created');
 
       return {
-        checkout_url: checkoutUrl,
-        session_id: sessionId,
+        init_point,
+        preference_id,
         idempotency_key: key,
       };
     } catch (error: unknown) {
@@ -185,113 +189,112 @@ export class PaymentsService {
 
   async handleWebhook(
     body: any,
-    stripeSignature?: string,
+    xSignature?: string,
+    xRequestId?: string,
   ) {
+    // Validate webhook signature if secret is configured
+    const webhookSecret = this.configService.get<string>('MERCADO_PAGO_WEBHOOK_SECRET');
     const isProduction = process.env.NODE_ENV === 'production';
 
-    try {
-      // Validate webhook signature
-      const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
-      
-      if (webhookSecret && stripeSignature) {
-        try {
-          const event = this.stripeService.verifyWebhookSignature(
-            JSON.stringify(body),
-            stripeSignature,
-          );
-          
-          // Log only safe fields
-          const safeData = this.extractSafeData(event);
-          this.logger.log(`Webhook received: ${event.type}`);
+    if (webhookSecret) {
+      const bodyString = JSON.stringify(body);
+      const isValidSignature = validateMercadoPagoSignature(
+        xSignature,
+        xRequestId,
+        bodyString,
+        webhookSecret,
+      );
 
-          // Extract payment data from event
-          const paymentData = extractPaymentDataFromEvent(event);
-          if (!paymentData) {
-            this.logger.log(`Unsupported event type: ${event.type}`);
-            return { success: true };
-          }
-
-          const { stripePaymentId, status, customerEmail, amount, currency, stripeCustomerId } = paymentData;
-
-          // Check for duplicate webhook processing
-          const existingPayment = await this.paymentRepository.findByStripePaymentId(stripePaymentId);
-          if (existingPayment && !shouldProcessEvent(existingPayment.lastWebhookId, event.id)) {
-            this.logger.log(`Webhook already processed: ${event.id}`);
-            return { success: true };
-          }
-
-          // Extract metadata from event
-          const metadata = (event.data.object as any).metadata || {};
-          const metadataGroupId = metadata.groupId;
-          const metadataUserId = metadata.userId;
-          const metadataSubscriptionId = metadata.subscriptionId;
-          const externalReference = metadata.externalReference;
-
-          console.log('[PaymentsService] Webhook metadata:', {
-            groupId: metadataGroupId,
-            userId: metadataUserId,
-            subscriptionId: metadataSubscriptionId,
-            externalReference,
-          });
-
-          safeLogPaymentInfo(stripePaymentId, status, 'Webhook processed');
-
-          // Update payment status in database
-          const paymentRecord = await this.paymentRepository.findByExternalReference(externalReference);
-          if (paymentRecord) {
-            await this.paymentRepository.updatePaymentStatus(
-              paymentRecord.id,
-              stripePaymentId,
-              status,
-              customerEmail,
-              amount,
-              currency,
-              stripeCustomerId,
-            );
-          }
-
-          // Update subscription status
-          await this.subscriptionsService.updatePaymentStatus(
-            externalReference,
-            stripePaymentId,
-            status as 'APPROVED' | 'REJECTED' | 'PENDING',
-            metadataGroupId,
-          );
-
-          // Record webhook processing for idempotency
-          if (paymentRecord) {
-            await this.paymentRepository.recordWebhookProcessing(paymentRecord.id, event.id);
-          }
-
-          return { success: true, status };
-        } catch (error: any) {
-          this.logger.error(`Error verifying webhook signature: ${error.message}`);
-          if (isProduction) {
-            throw new BadRequestException('Invalid webhook signature');
-          } else {
-            this.logger.warn('Dev mode: allowing request despite invalid signature');
-          }
-        }
-      } else {
+      if (!isValidSignature) {
+        this.logger.warn('Invalid webhook signature - rejecting request');
         if (isProduction) {
-          this.logger.error('STRIPE_WEBHOOK_SECRET not configured in production');
-          throw new BadRequestException('Webhook secret not configured');
+          throw new BadRequestException('Invalid webhook signature');
         } else {
-          this.logger.warn('Dev mode: STRIPE_WEBHOOK_SECRET not configured, skipping signature validation');
-          // In dev mode, try to process without signature validation
-          const paymentData = extractPaymentDataFromEvent(body as any);
-          if (paymentData) {
-            this.logger.log(`Processing webhook without signature validation: ${paymentData.stripePaymentId}`);
-            return { success: true, status: paymentData.status };
-          }
+          this.logger.warn('Dev mode: allowing request despite invalid signature');
         }
       }
+    } else {
+      if (isProduction) {
+        this.logger.error('MERCADO_PAGO_WEBHOOK_SECRET not configured in production');
+        throw new BadRequestException('Webhook secret not configured');
+      } else {
+        this.logger.warn('Dev mode: MERCADO_PAGO_WEBHOOK_SECRET not configured, skipping signature validation');
+      }
+    }
 
-      return { success: true };
+    try {
+      // Log only safe fields
+      const safeData = this.extractSafeData(body);
+      this.logger.log(`Webhook received: ${JSON.stringify(safeData)}`);
+
+      // Validate event type
+      const topic = body.type;
+      if (topic !== 'payment') {
+        this.logger.log(`Ignoring unsupported event type: ${topic}`);
+        return { success: true }; // Return 200 OK even for unsupported events
+      }
+
+      const paymentId = body.data?.id;
+      if (!paymentId) {
+        this.logger.warn('Payment ID not found in webhook');
+        return { success: true }; // Return 200 OK to avoid retries
+      }
+
+      // Check for duplicate webhook processing
+      const existingPayment = await this.paymentRepository.findByMercadoPagoId(String(paymentId));
+      if (existingPayment?.lastWebhookId === body.id) {
+        this.logger.log(`Webhook already processed: ${body.id}`);
+        return { success: true }; // Idempotent
+      }
+
+      // Fetch payment details from Mercado Pago (don't trust webhook body)
+      const paymentResponse = await this.mercadoPagoService.getPayment(String(paymentId));
+      const paymentData = paymentResponse;
+
+      const mappedStatus = PAYMENT_STATUS_MAP[paymentData.status] || 'REJECTED';
+      const externalReference = paymentData.external_reference as string;
+
+      // Extract metadata from payment
+      const metadata = paymentData.metadata || {};
+      const metadataGroupId = metadata.groupId;
+      const metadataUserId = metadata.userId;
+      const metadataSubscriptionId = metadata.subscriptionId;
+
+      console.log('[PaymentsService] Webhook metadata:', {
+        groupId: metadataGroupId,
+        userId: metadataUserId,
+        subscriptionId: metadataSubscriptionId,
+      });
+
+      safeLogPaymentInfo(paymentId, mappedStatus, 'Webhook processed');
+
+      // Associate Mercado Pago payment ID and update payment status in database
+      const paymentRecord = await this.paymentRepository.findByExternalReference(externalReference);
+      if (paymentRecord) {
+        await this.paymentRepository.updatePaymentStatus(
+          paymentRecord.id,
+          String(paymentId),
+          mappedStatus as any,
+        );
+      }
+
+      // Update subscription status
+      await this.subscriptionsService.updatePaymentStatus(
+        externalReference,
+        String(paymentId),
+        mappedStatus as 'APPROVED' | 'REJECTED' | 'PENDING',
+        metadataGroupId,
+      );
+
+      // Record webhook processing for idempotency
+      await this.paymentRepository.recordWebhookProcessing(String(paymentId), body.id);
+
+      return { success: true, status: mappedStatus };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`Error processing webhook: ${errorMessage}`);
       // Return 200 OK to prevent webhook retries on errors
+      // Errors should be investigated through logs, not by webhook re-delivery
       return { success: true };
     }
   }
@@ -384,6 +387,20 @@ export class PaymentsService {
       return JSON.stringify(error);
     } catch {
       return String(error);
+    }
+  }
+
+  private getValidUrl(value?: string) {
+    if (!value) return undefined;
+
+    try {
+      const url = new URL(value);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return undefined;
+      }
+      return url.toString();
+    } catch {
+      return undefined;
     }
   }
 

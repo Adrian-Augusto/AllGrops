@@ -24,8 +24,8 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   /**
-   * Create Stripe Checkout Session
-   * Returns checkout URL for payment
+   * Create Mercado Pago payment preference
+   * Returns init_point URL for checkout
    */
   @Post('create')
   @UseGuards(JwtAuthGuard)
@@ -34,15 +34,15 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Create payment',
     description:
-      'Creates a Stripe Checkout Session for group highlighting. Returns Stripe checkout link.',
+      'Creates a Mercado Pago preference for group highlighting. Returns Mercado Pago checkout link.',
   })
   @ApiResponse({
     status: 201,
-    description: 'Checkout session created',
+    description: 'Payment preference created',
     schema: {
       example: {
-        checkout_url: 'https://checkout.stripe.com/c/pay/...',
-        session_id: 'cs_test_...',
+        init_point: 'https://www.mercadopago.com.br/checkout/v1/...',
+        preference_id: 'payment-id',
         idempotency_key: 'key',
       },
     },
@@ -60,15 +60,15 @@ export class PaymentsController {
   }
 
   /**
-   * Stripe Webhook Handler
+   * Mercado Pago Webhook Handler
    * Receives payment status notifications
    * Does not require authentication
    */
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Stripe webhook',
-    description: 'Receives payment status notifications from Stripe',
+    summary: 'Mercado Pago webhook',
+    description: 'Receives payment status notifications from Mercado Pago',
   })
   @ApiResponse({
     status: 200,
@@ -76,12 +76,14 @@ export class PaymentsController {
     schema: { example: { success: true } },
   })
   async handleWebhook(
-    @Body() body: any,
-    @Headers('stripe-signature') stripeSignature?: string,
+    @Body() body: PaymentWebhookDto,
+    @Headers('x-signature') xSignature?: string,
+    @Headers('x-request-id') xRequestId?: string,
   ) {
     return this.paymentsService.handleWebhook(
       body,
-      stripeSignature,
+      xSignature,
+      xRequestId,
     );
   }
 
