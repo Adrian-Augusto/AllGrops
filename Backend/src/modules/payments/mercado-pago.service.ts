@@ -34,6 +34,7 @@ export class MercadoPagoService {
     failureUrl: string;
     pendingUrl: string;
     metadata: Record<string, string>;
+    externalReference: string;
     notificationUrl?: string;
   }): Promise<{ init_point: string; preference_id: string }> {
     try {
@@ -50,6 +51,7 @@ export class MercadoPagoService {
           email: this.configService.get<string>('MERCADO_PAGO_PAYER_EMAIL') || 'noreply@allgrops.com',
         },
         metadata: params.metadata,
+        external_reference: params.externalReference,
         statement_descriptor: 'AllGrops - Destaque de Grupos',
         back_urls: {
           success: params.successUrl,
@@ -68,7 +70,7 @@ export class MercadoPagoService {
 
       const response = await this.preferenceClient.create({ body: preference });
 
-      this.logger.log(`Preference created: ${response.id}`);
+      this.logger.log(`Preference created: ${response.id} with external_reference: ${params.externalReference}`);
 
       return {
         init_point: response.init_point,

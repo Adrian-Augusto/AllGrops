@@ -155,12 +155,12 @@ export class PaymentsService {
         failureUrl: `${frontendUrl}/pagamento/falha`,
         pendingUrl: `${frontendUrl}/pagamento/pendente`,
         notificationUrl: notificationUrl || undefined,
+        externalReference,
         metadata: {
           userId,
           planId: plan.id,
           groupId: groupId || '',
           subscriptionId: subscription.id,
-          externalReference,
         },
       });
 
@@ -268,12 +268,29 @@ export class PaymentsService {
         subscriptionId: metadataSubscriptionId,
         paymentStatus: mpStatus,
         mappedStatus,
+        externalReference,
       });
 
       safeLogPaymentInfo(paymentId, mappedStatus, 'Webhook processed');
 
+      // Fallback identification: use metadata or external_reference
+      let finalExternalReference = externalReference;
+      let finalGroupId = metadataGroupId;
+
+      // If external_reference is null but metadata exists, try to reconstruct it
+      if (!externalReference && metadataUserId && metadataSubscriptionId) {
+        finalExternalReference = `${metadataUserId}:${metadataSubscriptionId}`;
+        this.logger.log(`[Webhook] Reconstructed external_reference from metadata: ${finalExternalReference}`);
+      }
+
+      // If no identification data, log and return
+      if (!finalExternalReference && !metadataSubscriptionId) {
+        this.logger.warn(`[Webhook] No identification data (external_reference or metadata) for payment ${paymentId}`);
+        return { success: true, message: 'No identification data' };
+      }
+
       // Associate Mercado Pago payment ID and update payment status in database
-      const paymentRecord = await this.paymentRepository.findByExternalReference(externalReference);
+      const paymentRecord = await this.paymentRepository.findByExternalReference(finalExternalReference);
       if (paymentRecord) {
         await this.paymentRepository.updatePaymentStatus(
           paymentRecord.id,
@@ -282,15 +299,15 @@ export class PaymentsService {
         );
         this.logger.log(`[Webhook] Payment record ${paymentRecord.id} updated to ${mappedStatus}`);
       } else {
-        this.logger.warn(`[Webhook] No payment record found for external reference: ${externalReference}`);
+        this.logger.warn(`[Webhook] No payment record found for external reference: ${finalExternalReference}`);
       }
 
       // Update subscription status
       await this.subscriptionsService.updatePaymentStatus(
-        externalReference,
+        finalExternalReference,
         String(paymentId),
         mappedStatus as 'APPROVED' | 'REJECTED' | 'PENDING',
-        metadataGroupId,
+        finalGroupId,
       );
 
       // Record webhook processing for idempotency

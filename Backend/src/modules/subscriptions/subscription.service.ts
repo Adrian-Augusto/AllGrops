@@ -49,6 +49,11 @@ export class SubscriptionsService {
     metadataGroupId?: string,
   ) {
     // external_reference: userId:planId:subscriptionId
+    if (!externalReference) {
+      this.logger.warn(`[SubscriptionsService] No external reference provided for payment ${paymentId}`);
+      return null;
+    }
+
     const parts = externalReference.split(':');
     const subscriptionId = parts[2]; // Last part is always subscriptionId
 
