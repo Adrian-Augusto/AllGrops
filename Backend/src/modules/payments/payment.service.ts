@@ -144,8 +144,9 @@ export class PaymentsService {
 
       // Create Mercado Pago preference
       const frontendUrl = process.env.FRONTEND_URL || 'https://allgrops.onrender.com';
-      const notificationUrl = this.getValidUrl(process.env.MERCADO_PAGO_WEBHOOK_URL);
+      const notificationUrl = this.getValidUrl(process.env.MERCADO_PAGO_WEBHOOK_URL) || 'https://allgrops.onrender.com/api/v1/payments/webhook';
       console.log('[PaymentsService] Creating Mercado Pago preference...');
+      console.log('[PaymentsService] Notification URL:', notificationUrl);
       
       const { init_point, preference_id } = await this.mercadoPagoService.createPreference({
         planName: `${plan.name} - Plano Premium`,
