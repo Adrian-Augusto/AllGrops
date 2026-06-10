@@ -71,6 +71,14 @@ export class AdminController {
     return this.adminService.rejectGroup(id, admin.id, reason);
   }
 
+  @Patch('groups/:id/promote')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Promote a group (Mark as featured)' })
+  @ApiResponse({ status: 200, description: 'Group promoted successfully' })
+  async promoteGroup(@Param('id') id: string) {
+    return this.adminService.promoteGroup(id);
+  }
+
   @Post('groups/rotate-featured')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotate featured groups (manual trigger for 3h cycle)' })

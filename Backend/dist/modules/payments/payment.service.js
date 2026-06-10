@@ -28,15 +28,6 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
     mercadoPagoService;
     defaultPlans = [
         {
-            slug: 'three-days',
-            name: '3 Days Sponsored',
-            price: 0.10,
-            type: 'SPONSORED_3_DAYS',
-            description: 'Sponsor your group for 3 days',
-            durationDays: 3,
-            maxSponsoredGroups: 1,
-        },
-        {
             slug: 'seven-days',
             name: '7 Days Sponsored',
             price: 19.99,

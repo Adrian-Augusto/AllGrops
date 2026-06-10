@@ -42,6 +42,9 @@ let AdminController = class AdminController {
     async rejectGroup(id, reason, admin) {
         return this.adminService.rejectGroup(id, admin.id, reason);
     }
+    async promoteGroup(id) {
+        return this.adminService.promoteGroup(id);
+    }
     async rotateFeaturedGroups() {
         return this.featuredGroupsService.rotateFeaturedGroups();
     }
@@ -104,6 +107,16 @@ __decorate([
     __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "rejectGroup", null);
+__decorate([
+    (0, common_1.Patch)('groups/:id/promote'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Promote a group (Mark as featured)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Group promoted successfully' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "promoteGroup", null);
 __decorate([
     (0, common_1.Post)('groups/rotate-featured'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),

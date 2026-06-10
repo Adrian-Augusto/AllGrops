@@ -14,15 +14,6 @@ export class PaymentsService {
   private readonly mercadoPagoService: MercadoPagoService;
   private readonly defaultPlans = [
     {
-      slug: 'three-days',
-      name: '3 Days Sponsored',
-      price: 0.10,
-      type: 'SPONSORED_3_DAYS' as const,
-      description: 'Sponsor your group for 3 days',
-      durationDays: 3,
-      maxSponsoredGroups: 1,
-    },
-    {
       slug: 'seven-days',
       name: '7 Days Sponsored',
       price: 19.99,

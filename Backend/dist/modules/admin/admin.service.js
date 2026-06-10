@@ -82,6 +82,19 @@ let AdminService = AdminService_1 = class AdminService {
         }
         return this.groupsService.rejectGroup(groupId, adminId, rejectionReason || 'Rejected by admin');
     }
+    async promoteGroup(groupId) {
+        if (!groupId) {
+            throw new common_1.BadRequestException('Group ID is required');
+        }
+        const group = await this.prisma.group.findUnique({ where: { id: groupId } });
+        if (!group) {
+            throw new common_1.NotFoundException('Group not found');
+        }
+        return this.prisma.group.update({
+            where: { id: groupId },
+            data: { isFeatured: true },
+        });
+    }
     async getGroupStatistics() {
         const [pending, approved, rejected, total] = await Promise.all([
             this.prisma.group.count({ where: { status: 'PENDING' } }),
