@@ -25,13 +25,14 @@ let PaymentsController = class PaymentsController {
         this.paymentsService = paymentsService;
     }
     /**
-     * Create payment preference in Mercado Pago
-     * Returns only init_point URL for checkout
+     * Create Mercado Pago payment preference
+     * Returns init_point URL for checkout
      */
     async createPayment(user, dto) {
         return this.paymentsService.createPreference({
             userId: user.id,
             planId: dto.planId,
+            groupId: dto.groupId,
             idempotencyKey: dto.idempotencyKey,
         });
     }
@@ -41,8 +42,6 @@ let PaymentsController = class PaymentsController {
      * Does not require authentication
      */
     async handleWebhook(body, xSignature, xRequestId) {
-        // For production, validate webhook signature
-        // This example assumes MP validation will be added when secret is available
         return this.paymentsService.handleWebhook(body, xSignature, xRequestId);
     }
     /**
@@ -61,7 +60,7 @@ __decorate([
     (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
     (0, swagger_1.ApiOperation)({
         summary: 'Create payment',
-        description: 'Creates a payment preference for group highlighting. Returns Mercado Pago checkout link.',
+        description: 'Creates a Mercado Pago preference for group highlighting. Returns Mercado Pago checkout link.',
     }),
     (0, swagger_1.ApiResponse)({
         status: 201,
@@ -96,7 +95,7 @@ __decorate([
     __param(1, (0, common_1.Headers)('x-signature')),
     __param(2, (0, common_1.Headers)('x-request-id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_payment_dto_1.PaymentWebhookDto, String, String]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", Promise)
 ], PaymentsController.prototype, "handleWebhook", null);
 __decorate([

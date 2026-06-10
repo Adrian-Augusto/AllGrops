@@ -12,6 +12,12 @@ import * as path from 'path';
 import { ImageProxyInterceptor } from './modules/upload/image-proxy.interceptor';
 import { PrismaService } from './prisma/prisma.service';
 import { RequestLoggingInterceptor } from './common/interceptors/request-logging.interceptor';
+import * as dns from 'dns';
+
+// Force DNS resolution to prefer IPv4 first.
+// This resolves "connect ENETUNREACH" issues on cloud providers (like Render)
+// when connecting to services like Gmail SMTP over IPv6.
+dns.setDefaultResultOrder('ipv4first');
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);

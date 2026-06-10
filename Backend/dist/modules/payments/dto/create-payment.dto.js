@@ -14,6 +14,7 @@ const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
 class CreatePaymentDto {
     planId;
+    groupId;
     idempotencyKey;
 }
 exports.CreatePaymentDto = CreatePaymentDto;
@@ -26,6 +27,16 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreatePaymentDto.prototype, "planId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'ID do grupo específico para patrocinar (opcional - se não informado, será plano premium para todos os grupos)',
+        example: 'g1a2b3c4d5e6',
+        required: false,
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreatePaymentDto.prototype, "groupId", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
         description: 'Chave de idempotência para prevenir duplicatas',

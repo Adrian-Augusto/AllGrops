@@ -1,4 +1,9 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+// Force DNS resolution to prefer IPv4 first
+dns.setDefaultResultOrder('ipv4first');
+
 require('dotenv').config({ path: '.env' });
 
 async function testEmail() {

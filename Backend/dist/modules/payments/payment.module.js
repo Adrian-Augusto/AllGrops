@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const payment_controller_1 = require("./payment.controller");
 const payment_service_1 = require("./payment.service");
 const payment_repository_1 = require("./payment.repository");
+const mercado_pago_service_1 = require("./mercado-pago.service");
 const subscription_module_1 = require("../subscriptions/subscription.module");
 const prisma_service_1 = require("../../prisma/prisma.service");
 let PaymentsModule = class PaymentsModule {
@@ -20,7 +21,7 @@ exports.PaymentsModule = PaymentsModule = __decorate([
     (0, common_1.Module)({
         imports: [subscription_module_1.SubscriptionsModule],
         controllers: [payment_controller_1.PaymentsController],
-        providers: [payment_service_1.PaymentsService, payment_repository_1.PaymentRepository, prisma_service_1.PrismaService],
+        providers: [payment_service_1.PaymentsService, payment_repository_1.PaymentRepository, mercado_pago_service_1.MercadoPagoService, prisma_service_1.PrismaService],
         exports: [payment_service_1.PaymentsService, payment_repository_1.PaymentRepository],
     })
 ], PaymentsModule);

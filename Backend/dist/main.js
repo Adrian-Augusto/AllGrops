@@ -48,6 +48,11 @@ const express = __importStar(require("express"));
 const path = __importStar(require("path"));
 const image_proxy_interceptor_1 = require("./modules/upload/image-proxy.interceptor");
 const prisma_service_1 = require("./prisma/prisma.service");
+const dns = __importStar(require("dns"));
+// Force DNS resolution to prefer IPv4 first.
+// This resolves "connect ENETUNREACH" issues on cloud providers (like Render)
+// when connecting to services like Gmail SMTP over IPv6.
+dns.setDefaultResultOrder('ipv4first');
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     const configService = app.get(config_1.ConfigService);

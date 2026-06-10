@@ -49,8 +49,12 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         });
         return subscription;
     }
-    async updatePaymentStatus(externalReference, paymentId, status) {
+    async updatePaymentStatus(externalReference, paymentId, status, metadataGroupId) {
         // external_reference: userId:planId:subscriptionId
+        if (!externalReference) {
+            this.logger.warn(`[SubscriptionsService] No external reference provided for payment ${paymentId}`);
+            return null;
+        }
         const parts = externalReference.split(':');
         const subscriptionId = parts[2]; // Last part is always subscriptionId
         // Fetch subscription to get planId for expiration calculation
@@ -78,8 +82,19 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
                 paymentId,
                 isActive: status === 'APPROVED',
                 expiresAt,
+                // Update groupId from metadata if provided and different
+                ...(metadataGroupId && existingSubscription.groupId !== metadataGroupId ? { groupId: metadataGroupId } : {}),
             },
         });
+        // Set isFeatured: true on group when subscription is approved and has groupId
+        if (status === 'APPROVED' && existingSubscription.groupId) {
+            await this.prisma.group.update({
+                where: { id: existingSubscription.groupId },
+                data: { isFeatured: true },
+            });
+            this.logger.log(`✅ Grupo ${existingSubscription.groupId} marcado como patrocinado (isFeatured: true)`);
+            console.log(`[SubscriptionsService] Grupo ${existingSubscription.groupId} (${existingSubscription.group?.name}) marcado como patrocinado`);
+        }
         // Send email notification when subscription is approved
         if (status === 'APPROVED' && existingSubscription.user?.email) {
             const subject = existingSubscription.group

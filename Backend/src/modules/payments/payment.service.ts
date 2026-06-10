@@ -196,7 +196,7 @@ export class PaymentsService {
     // ALWAYS return 200 OK as quickly as possible
     // NEVER reject webhook with 400 due to unexpected structure
     
-    const webhookId = body.id || 'unknown';
+    const webhookId = body.id ? String(body.id) : 'unknown';
     const eventType = body.type || 'unknown';
     const eventAction = body.action || 'unknown';
 
