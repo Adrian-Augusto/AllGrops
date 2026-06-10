@@ -364,7 +364,10 @@ export class PaymentsService {
     await this.prisma.plan.updateMany({
       where: {
         isActive: true,
-        price: 0.01,
+        OR: [
+          { price: 0.01 },
+          { price: 0.10 }
+        ]
       },
       data: { isActive: false },
     });
