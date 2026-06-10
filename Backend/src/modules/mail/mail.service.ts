@@ -17,6 +17,7 @@ export class MailService {
 
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
+      family: 4, // Force connection over IPv4
       auth: {
         user: emailUser,
         pass: emailPass,

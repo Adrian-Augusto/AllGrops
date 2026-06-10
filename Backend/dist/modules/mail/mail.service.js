@@ -60,6 +60,7 @@ let MailService = MailService_1 = class MailService {
         }
         this.transporter = nodemailer.createTransport({
             service: 'gmail',
+            family: 4, // Force connection over IPv4
             auth: {
                 user: emailUser,
                 pass: emailPass,
